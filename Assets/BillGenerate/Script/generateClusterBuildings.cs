@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class GenerateClusterBuildings : MonoBehaviour
@@ -22,26 +23,42 @@ public class GenerateClusterBuildings : MonoBehaviour
     {
         Grid,
         RecursiveSubdivision,
+        // チャンク座標＋グローバルシードだけで決まる決定論的な格子で幹線道路を配置する。
+        // どのチャンクから計算しても同じ結果になるため、チャンク境界で街区のリズムが途切れない。
+        GlobalLattice,
     }
 
     [Header("Grid")]
+    [Tooltip("チャンク生成時は「1チャンクあたりの横方向マス数」として扱われる。")]
     [SerializeField] private int gridWidth = 20;
+    [Tooltip("チャンク生成時は「1チャンクあたりの縦方向マス数」として扱われる。")]
     [SerializeField] private int gridHeight = 20;
 
     [Header("Cell Size")]
-    [SerializeField] private float cellWidth = 1f;
-    [SerializeField] private float cellHeight = 1f;
+    [SerializeField] private float cellWidth = 3f;
+    [SerializeField] private float cellHeight = 3f;
 
     [Header("Road Generation")]
     [SerializeField] private RoadGenerationMode roadGenerationMode = RoadGenerationMode.RecursiveSubdivision;
     [SerializeField] private int majorRoadMinInterval = 8;
     [SerializeField] private int majorRoadMaxInterval = 14;
     [SerializeField] private int majorRoadWidth = 3;
-    [SerializeField] private int outerRoadWidth = 2;
     [SerializeField] private bool generateOuterBoundaryRoads = true;
     [SerializeField] private int randomSeed = 0;
     [Tooltip("RecursiveSubdivisionモードでのみ使用。区画が分割可能でもこの確率で分割を打ち切り、大きめの街区として確定する。")]
     [SerializeField] [Range(0f, 1f)] private float recursiveSplitStopChance = 0.15f;
+
+    [Header("Global Lattice Variance")]
+    [Tooltip("GlobalLatticeモード専用。ワールド座標のノイズで格子の粗密を変化させる強さ。0だとジッター幅が一定になる。")]
+    [SerializeField] [Range(0f, 1f)] private float latticeVarianceStrength = 0.5f;
+    [Tooltip("GlobalLatticeモード専用。ノイズが低いセルの道路を間引いて隣と合体させ、大きめの街区を作る最大確率。")]
+    [SerializeField] [Range(0f, 0.9f)] private float latticeBlockMergeChance = 0.25f;
+    [Tooltip("GlobalLatticeモード専用。粗密ノイズのスケール。小さいほど粗密の切り替わりが緩やかになる。")]
+    [SerializeField] private float latticeNoiseFrequency = 0.15f;
+    [Tooltip("GlobalLatticeモード専用。街区合体のムラ（クラスター）を作る低周波ノイズのスケール。latticeNoiseFrequencyより小さい値にすると、広い範囲でまとまって大きい街区が生まれるエリアができる。")]
+    [SerializeField] private float latticeClusterFrequency = 0.02f;
+    [Tooltip("GlobalLatticeモード専用。クラスターノイズが合体確率に与える影響の強さ。0でクラスター化なし（latticeBlockMergeChanceが一様に効く従来通り）。1に近いほど「合体しまくるエリア」と「全く合体しないエリア」の差がはっきり出る。")]
+    [SerializeField] [Range(0f, 1f)] private float latticeClusterStrength = 0.6f;
 
     [Header("Building Generation")]
     [SerializeField] private int minBuildingSize = 1;
@@ -49,6 +66,8 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] private int buildingPaddingWidth = 1;
     [Tooltip("街区を敷地に再帰分割する際、まだ分割可能でもこの確率で打ち切り、大きめの敷地として確定する。")]
     [SerializeField] [Range(0f, 1f)] private float lotSplitStopChance = 0.35f;
+    [Tooltip("パフォーマンス課題2対策：建物Instantiateを1フレームあたりこの数だけ処理してyieldする。小さいほど1フレームの負荷は下がるが、チャンク1個の生成完了までのフレーム数は伸びる。")]
+    [SerializeField] private int buildingsInstantiatedPerFrame = 40;
 
     [Header("Guardrail Generation")]
     [SerializeField] private bool enablePeriodicPortals = false;
@@ -64,6 +83,16 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] private GameObject guardrailPrefab;
     [SerializeField] private GameObject billPrefab;
     [SerializeField] private GameObject crosswalkPrefab;
+
+    [Header("Building Rarity")]
+    [Tooltip("未設定の場合は常にbillPrefabを使用する。設定すると距離に応じて抽選されたプレファブを使用する。")]
+    [SerializeField] private BuildingRaritySettings raritySettings;
+    [Tooltip("レア度抽選の距離を測る基準点（通常はマップのスタート地点＝ワールド原点）。")]
+    [SerializeField] private Vector3 distanceOriginWorldPosition = Vector3.zero;
+
+    [Header("Chunk Streaming")]
+    [Tooltip("falseにするとAwakeで自動生成しない。ChunkManagerがGenerateChunkを明示的に呼び出す運用で使用する。")]
+    [SerializeField] private bool autoGenerateOnAwake = true;
 
     private static readonly Vector2Int[] FourDirections =
     {
@@ -82,6 +111,12 @@ public class GenerateClusterBuildings : MonoBehaviour
     private bool[,] portalMap;
     private int[,] localRoadDistanceFromMajor;
     private GameObject groundParent;
+    private Vector2Int chunkCoord;
+    private readonly HashSet<int> destroyedLotIds = new HashSet<int>();
+
+    // GlobalLatticeモード専用。randomSeed（チャンクごとに違う値）とは別に、
+    // 全チャンク共通の値を使うことで、どのチャンクから計算しても同じ格子になるようにする。
+    private int latticeSeed;
 
     private void Reset()
     {
@@ -91,11 +126,11 @@ public class GenerateClusterBuildings : MonoBehaviour
     private void OnValidate()
     {
         gridWidth = Mathf.Max(1, gridWidth);
-        gridHeight = Mathf.Max(1, gridHeight);
+        // チャンクを正方形に強制する。gridWidthを基準にgridHeightを常に揃える。
+        gridHeight = gridWidth;
         majorRoadMinInterval = Mathf.Max(1, majorRoadMinInterval);
         majorRoadMaxInterval = Mathf.Max(majorRoadMinInterval, majorRoadMaxInterval);
         majorRoadWidth = Mathf.Max(1, majorRoadWidth);
-        outerRoadWidth = Mathf.Max(1, outerRoadWidth);
         minBuildingSize = Mathf.Max(1, minBuildingSize);
         maxBuildingSize = Mathf.Max(minBuildingSize, maxBuildingSize);
         buildingPaddingWidth = Mathf.Max(0, buildingPaddingWidth);
@@ -108,10 +143,56 @@ public class GenerateClusterBuildings : MonoBehaviour
 
     private void Awake()
     {
-        GenerateLand();
+        if (autoGenerateOnAwake)
+        {
+            GenerateLand();
+        }
     }
 
+    // ChunkManagerからチャンク単位で呼び出すエントリポイント。
+    // seedからチャンクごとに決定論的なレイアウトを生成する。
+    public void GenerateChunk(int seed)
+    {
+        GenerateChunk(seed, Vector2Int.zero, null, seed, null);
+    }
+
+    // coordは破壊状態の紐付けおよびGlobalLatticeモードのワールド座標計算に使うチャンク座標。
+    // alreadyDestroyedLotIdsに含まれる敷地IDの建物はInstantiateしない（破壊済みのまま復活させないため）。
+    // sharedLatticeSeedはGlobalLatticeモード専用。全チャンクで同じ値を渡すことで格子の連続性を保証する
+    // （randomSeedはチャンクごとに異なる値のため、これとは別に受け取る）。
+    public void GenerateChunk(int seed, Vector2Int coord, IEnumerable<int> alreadyDestroyedLotIds, int sharedLatticeSeed)
+    {
+        GenerateChunk(seed, coord, alreadyDestroyedLotIds, sharedLatticeSeed, null);
+    }
+
+    // パフォーマンス課題2対策：生成処理をコルーチン化し、複数フレームに分割して実行する。
+    // onCompleteは生成完了（GameObject階層が出来上がった時点）で呼ばれる。ChunkManagerはこれを
+    // 使って「生成中はまだloadedChunksに入れない」制御を行う。
+    public void GenerateChunk(int seed, Vector2Int coord, IEnumerable<int> alreadyDestroyedLotIds, int sharedLatticeSeed, System.Action onComplete)
+    {
+        randomSeed = seed == 0 ? 1 : seed;
+        chunkCoord = coord;
+        latticeSeed = sharedLatticeSeed;
+        destroyedLotIds.Clear();
+        if (alreadyDestroyedLotIds != null)
+        {
+            foreach (int lotId in alreadyDestroyedLotIds)
+            {
+                destroyedLotIds.Add(lotId);
+            }
+        }
+
+        StartCoroutine(GenerateLandRoutine(onComplete));
+    }
+
+    // 単体テスト/非ストリーミング運用向け（ChunkManagerを介さずAwakeから直接呼ばれる場合など）。
+    // 完了を待つ必要がある場合はGenerateChunk(...)のonComplete引数を使うこと。
     public void GenerateLand()
+    {
+        StartCoroutine(GenerateLandRoutine(null));
+    }
+
+    private IEnumerator GenerateLandRoutine(System.Action onComplete)
     {
         landMap = new LandType[gridWidth, gridHeight];
         buildingMap = new int[gridHeight, gridWidth];
@@ -137,13 +218,38 @@ public class GenerateClusterBuildings : MonoBehaviour
             }
         }
 
+        // パフォーマンス課題2（チャンク生成が重い）対策：各フェーズの間でyield returnし、
+        // 1フレームに処理を集中させず複数フレームに分散する。Profilerサンプルは
+        // どのフェーズが支配的かを引き続き個別に確認できるよう残してある。
+        UnityEngine.Profiling.Profiler.BeginSample("GenerateMajorRoads");
         GenerateMajorRoads();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("GenerateLots");
         GenerateLots();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("ConvertRemainingLotGapsToLocalRoads");
         ConvertRemainingLotGapsToLocalRoads();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("GenerateGuardrailLayout");
         GenerateGuardrailLayout();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("GenerateCrosswalksAndTrafficLights");
         GenerateCrosswalksAndTrafficLights();
-        BuildGroundTiles();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        yield return BuildGroundTilesRoutine();
+
         Debug.Log($"City grid generated: {gridWidth} x {gridHeight}. Lots and buildings placed.");
+        onComplete?.Invoke();
     }
 
     private void GenerateMajorRoads()
@@ -163,6 +269,9 @@ public class GenerateClusterBuildings : MonoBehaviour
             case RoadGenerationMode.RecursiveSubdivision:
                 GenerateMajorRoadsRecursive();
                 break;
+            case RoadGenerationMode.GlobalLattice:
+                GenerateMajorRoadsLattice();
+                break;
             case RoadGenerationMode.Grid:
             default:
                 GenerateMajorRoadsGrid();
@@ -170,16 +279,24 @@ public class GenerateClusterBuildings : MonoBehaviour
         }
     }
 
+    // チャンク同士は互いの外周が接する。両側がmajorRoadWidth分を満額塗ると
+    // 境界だけ道路が2倍太くなってしまうため、片側はその半分だけを塗り、
+    // 隣接チャンクの半分と合わさって内部の幹線道路（majorRoadWidth）と同じ太さになるようにする。
+    // majorRoadWidthが奇数の場合、切り捨てにより継ぎ目の合計幅が1マス細くなる（例: 3→2）。
+    private int BoundaryRoadWidth => Mathf.Max(1, majorRoadWidth / 2);
+
     private void PaintOuterBoundaryRoads()
     {
+        int boundaryWidth = BoundaryRoadWidth;
+
         for (int x = 0; x < gridWidth; x++)
         {
             for (int y = 0; y < gridHeight; y++)
             {
-                bool isLeftEdge = x < outerRoadWidth;
-                bool isRightEdge = x >= gridWidth - outerRoadWidth;
-                bool isBottomEdge = y < outerRoadWidth;
-                bool isTopEdge = y >= gridHeight - outerRoadWidth;
+                bool isLeftEdge = x < boundaryWidth;
+                bool isRightEdge = x >= gridWidth - boundaryWidth;
+                bool isBottomEdge = y < boundaryWidth;
+                bool isTopEdge = y >= gridHeight - boundaryWidth;
 
                 if (isLeftEdge || isRightEdge || isBottomEdge || isTopEdge)
                 {
@@ -191,21 +308,180 @@ public class GenerateClusterBuildings : MonoBehaviour
 
     private void GenerateMajorRoadsGrid()
     {
-        List<int> majorRoadXPositions = GenerateRandomRoadPositions(outerRoadWidth, gridWidth - outerRoadWidth, majorRoadMinInterval, majorRoadMaxInterval);
-        List<int> majorRoadYPositions = GenerateRandomRoadPositions(outerRoadWidth, gridHeight - outerRoadWidth, majorRoadMinInterval, majorRoadMaxInterval);
+        int boundaryWidth = BoundaryRoadWidth;
+        List<int> majorRoadXPositions = GenerateRandomRoadPositions(boundaryWidth, gridWidth - boundaryWidth, majorRoadMinInterval, majorRoadMaxInterval);
+        List<int> majorRoadYPositions = GenerateRandomRoadPositions(boundaryWidth, gridHeight - boundaryWidth, majorRoadMinInterval, majorRoadMaxInterval);
 
         PaintRoadLinesByPositions(true, majorRoadXPositions, majorRoadWidth);
         PaintRoadLinesByPositions(false, majorRoadYPositions, majorRoadWidth);
+    }
+
+    // ワールド座標のセルインデックスとlatticeSeedだけで幹線道路の位置を決める。
+    // Random（チャンクごとに状態が違う）を一切使わないため、隣接チャンクが独立に計算しても
+    // 同じ格子線を得られ、街区のリズムがチャンク境界で途切れない。
+    // majorRoadMinInterval/MaxIntervalの平均を基準間隔、差の半分をジッター幅として流用する
+    // （min==maxならジッター0＝完全に規則的な格子になる）。
+    private void GenerateMajorRoadsLattice()
+    {
+        int boundaryWidth = generateOuterBoundaryRoads ? BoundaryRoadWidth : 0;
+        PaintLatticeInteriorAxis(true, boundaryWidth);
+        PaintLatticeInteriorAxis(false, boundaryWidth);
+    }
+
+    private int MacroCellSize => Mathf.Max(majorRoadWidth + 1, (majorRoadMinInterval + majorRoadMaxInterval) / 2);
+    private int MacroCellJitterRange => Mathf.Max(0, (majorRoadMaxInterval - majorRoadMinInterval) / 2);
+
+    private void PaintLatticeInteriorAxis(bool isVertical, int boundaryWidth)
+    {
+        int axisLength = isVertical ? gridWidth : gridHeight;
+        int worldOrigin = isVertical ? chunkCoord.x * gridWidth : chunkCoord.y * gridHeight;
+        int macroCellSize = MacroCellSize;
+
+        // 境界道路とのあいだに最低1街区分（majorRoadMinInterval）の余白を必ず空ける。
+        // 余白ゼロだと格子線が境界道路にピッタリ隙間なく接することがあり、見た目上
+        // 1本の異常に太い道路として繋がって見えてしまう（境界道路＋隣接格子線の合算）。
+        int safetyGap = majorRoadMinInterval;
+
+        int firstCellIndex = FloorDiv(worldOrigin, macroCellSize) - 1;
+        int lastCellIndex = FloorDiv(worldOrigin + axisLength, macroCellSize) + 1;
+
+        for (int cellIndex = firstCellIndex; cellIndex <= lastCellIndex; cellIndex++)
+        {
+            // ノイズが低いセルは道路を間引き、隣のセルと合体させて大きめの街区を作る。
+            // ワールド座標のノイズだけで決まるので、どのチャンクから計算しても同じ判定になる。
+            if (!ShouldPlaceLatticeLine(isVertical, cellIndex))
+            {
+                continue;
+            }
+
+            int worldLinePosition = GetLatticeLineWorldPosition(isVertical, cellIndex);
+            int localPosition = worldLinePosition - worldOrigin;
+
+            // 外周の境界道路と重複・近接しすぎる線は間引く。
+            if (localPosition < boundaryWidth + safetyGap ||
+                localPosition + majorRoadWidth > axisLength - boundaryWidth - safetyGap)
+            {
+                continue;
+            }
+
+            PaintLatticeLine(isVertical, localPosition);
+        }
+    }
+
+    // ワールド座標に対して滑らかに変化するノイズ値（0〜1）。latticeSeedでパターンを変える。
+    private float SampleLatticeNoise(bool isVertical, int cellIndex)
+    {
+        float seedOffsetA = (latticeSeed % 10000) * 0.0731f;
+        float seedOffsetB = (latticeSeed % 7919) * 0.0417f;
+        float axisOffset = isVertical ? 0f : 4096f;
+        float coord = cellIndex * latticeNoiseFrequency + axisOffset;
+        return Mathf.PerlinNoise(coord + seedOffsetA, seedOffsetB);
+    }
+
+    private bool ShouldPlaceLatticeLine(bool isVertical, int cellIndex)
+    {
+        if (latticeBlockMergeChance <= 0f)
+        {
+            return true;
+        }
+
+        float noise = SampleLatticeNoise(isVertical, cellIndex);
+        return noise >= latticeBlockMergeChance;
+    }
+
+    private void PaintLatticeLine(bool isVertical, int localPosition)
+    {
+        for (int offset = 0; offset < majorRoadWidth; offset++)
+        {
+            int local = localPosition + offset;
+
+            if (isVertical)
+            {
+                if (local < 0 || local >= gridWidth)
+                {
+                    continue;
+                }
+
+                for (int y = 0; y < gridHeight; y++)
+                {
+                    MarkRoadCell(local, y, RoadClass.Major);
+                }
+            }
+            else
+            {
+                if (local < 0 || local >= gridHeight)
+                {
+                    continue;
+                }
+
+                for (int x = 0; x < gridWidth; x++)
+                {
+                    MarkRoadCell(x, local, RoadClass.Major);
+                }
+            }
+        }
+    }
+
+    private int GetLatticeLineWorldPosition(bool isVertical, int cellIndex)
+    {
+        int basePosition = cellIndex * MacroCellSize;
+        int baseJitterRange = MacroCellJitterRange;
+
+        if (baseJitterRange <= 0)
+        {
+            return basePosition;
+        }
+
+        // ノイズが高いセルほどジッター幅を広げ、低いセルほど規則正しくする。
+        // latticeVarianceStrength=0なら常にbaseJitterRangeのまま（従来通り）。
+        float noise = SampleLatticeNoise(isVertical, cellIndex);
+        float scale = Mathf.Lerp(1f - latticeVarianceStrength, 1f + latticeVarianceStrength, noise);
+        int jitterRange = Mathf.Clamp(Mathf.RoundToInt(baseJitterRange * scale), 0, baseJitterRange * 2);
+
+        if (jitterRange <= 0)
+        {
+            return basePosition;
+        }
+
+        int hash = HashLatticeCell(isVertical, cellIndex);
+        int jitter = Mathf.Abs(hash % (jitterRange * 2 + 1)) - jitterRange;
+        return basePosition + jitter;
+    }
+
+    private int HashLatticeCell(bool isVertical, int cellIndex)
+    {
+        unchecked
+        {
+            int h = latticeSeed;
+            h = h * 486187739 + cellIndex * 73856093;
+            h ^= isVertical ? 0x27d4eb2f : 0x165667b1;
+            h ^= h >> 15;
+            h *= unchecked((int)2246822519);
+            h ^= h >> 13;
+            return h;
+        }
+    }
+
+    private static int FloorDiv(int a, int b)
+    {
+        int q = a / b;
+        if (a % b != 0 && ((a < 0) != (b < 0)))
+        {
+            q--;
+        }
+
+        return q;
     }
 
     // 敷地全体を1つの区画とみなし、道路1本で2分割→できた区画をそれぞれ独立した乱数でさらに分割…を繰り返す。
     // 区画ごとに分割位置・分割回数が異なるため、街区の大きさ・形が場所ごとにバラバラになる。
     private void GenerateMajorRoadsRecursive()
     {
-        int x1 = generateOuterBoundaryRoads ? outerRoadWidth : 0;
-        int y1 = generateOuterBoundaryRoads ? outerRoadWidth : 0;
-        int x2 = generateOuterBoundaryRoads ? gridWidth - outerRoadWidth : gridWidth;
-        int y2 = generateOuterBoundaryRoads ? gridHeight - outerRoadWidth : gridHeight;
+        int boundaryWidth = generateOuterBoundaryRoads ? BoundaryRoadWidth : 0;
+        int x1 = boundaryWidth;
+        int y1 = boundaryWidth;
+        int x2 = gridWidth - boundaryWidth;
+        int y2 = gridHeight - boundaryWidth;
 
         SplitBlockRecursive(x1, y1, x2, y2);
     }
@@ -607,6 +883,58 @@ public class GenerateClusterBuildings : MonoBehaviour
 
                 if (roadClassMap[roadX, roadY] != RoadClass.Major)
                 {
+                    continue;
+                }
+
+                // その方向の大道路帯を対岸に向かって歩き、途中でグリッド端（＝チャンクの継ぎ目）に
+                // 突き当たるかどうかを先に調べる。外周道路（PaintOuterBoundaryRoads）は必ずグリッド端に
+                // 接するが、内部の幹線道路はsafetyGapにより端に接しないため、この判定で
+                // 「チャンク境界の外周道路」と「チャンク内部で完結する幹線道路」を区別できる。
+                int edgeX = roadX;
+                int edgeY = roadY;
+                bool reachedGridEdge = false;
+
+                while (true)
+                {
+                    int nx = edgeX + dir.x;
+                    int ny = edgeY + dir.y;
+
+                    if (nx < 0 || nx >= gridWidth || ny < 0 || ny >= gridHeight)
+                    {
+                        reachedGridEdge = true;
+                        break;
+                    }
+
+                    if (roadClassMap[nx, ny] != RoadClass.Major)
+                    {
+                        break;
+                    }
+
+                    edgeX = nx;
+                    edgeY = ny;
+                }
+
+                if (reachedGridEdge)
+                {
+                    // 対岸の信号機は隣接チャンク側のグリッドにあり、このチャンク単独では参照できない。
+                    // 対岸探索は諦め、このチャンクが担当する外周道路帯（半分）をそのまま横断歩道にする。
+                    // こうしないと、チャンクの継ぎ目には横断歩道が一切生成されなくなってしまう。
+                    int px = roadX;
+                    int py = roadY;
+
+                    while (true)
+                    {
+                        crosswalkMap[px, py] = true;
+
+                        if (px == edgeX && py == edgeY)
+                        {
+                            break;
+                        }
+
+                        px += dir.x;
+                        py += dir.y;
+                    }
+
                     continue;
                 }
 
@@ -1222,18 +1550,18 @@ public class GenerateClusterBuildings : MonoBehaviour
         return Vector3.one;
     }
 
-    private void BuildGroundTiles()
+    private IEnumerator BuildGroundTilesRoutine()
     {
         if (sitePrefab == null)
         {
             Debug.LogWarning("sitePrefab is not assigned. Please assign Assets/Prefab/ground/site.prefab.");
-            return;
+            yield break;
         }
 
         if (roadPrefab == null)
         {
             Debug.LogWarning("roadPrefab is not assigned. Please assign Assets/Prefab/ground/road.prefab.");
-            return;
+            yield break;
         }
 
         if (groundParent != null)
@@ -1244,6 +1572,15 @@ public class GenerateClusterBuildings : MonoBehaviour
         groundParent = new GameObject("GroundTiles");
         groundParent.transform.SetParent(transform, false);
 
+        // 敷地・道路・横断歩道は個別に触る対象ではないため、チャンク単位でメッシュ結合しDraw Call数を
+        // 削減する（パフォーマンス課題1対策）。信号機・ガードレールは、将来同じマスに「破壊可能な信号機/
+        // ガードレール」を設置する可能性がある（BuildingInstanceと同じパターンを流用する想定）ため、
+        // 結合せず個別GameObjectのまま残す。結合してしまうと1本だけ個別に破壊することができなくなるため。
+        List<CombineInstance> siteCombine = new List<CombineInstance>();
+        List<CombineInstance> roadCombine = new List<CombineInstance>();
+        List<CombineInstance> crosswalkCombine = new List<CombineInstance>();
+
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CollectCombineInstances");
         for (int y = 0; y < gridHeight; y++)
         {
             for (int x = 0; x < gridWidth; x++)
@@ -1253,39 +1590,109 @@ public class GenerateClusterBuildings : MonoBehaviour
                     continue;
                 }
 
-                Vector3 position = transform.position + new Vector3((x + 0.5f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
-                GameObject prefabToUse = sitePrefab;
-
-                string tileName;
+                Vector3 localPosition = new Vector3((x + 0.5f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
+                Vector3 scale = new Vector3(cellWidth, 1f, cellHeight);
 
                 if (trafficLightMap[x, y] && trafficLightsPrefab != null)
                 {
-                    prefabToUse = trafficLightsPrefab;
-                    tileName = "TrafficLight";
+                    GameObject tile = Instantiate(trafficLightsPrefab, transform.position + localPosition, Quaternion.identity, groundParent.transform);
+                    tile.name = $"TrafficLight_{x}_{y}";
+                    tile.transform.localScale = scale;
+                    continue;
                 }
-                else if (crosswalkMap[x, y] && crosswalkPrefab != null)
+
+                Matrix4x4 matrix = Matrix4x4.TRS(localPosition, Quaternion.identity, scale);
+
+                if (crosswalkMap[x, y] && crosswalkPrefab != null)
                 {
-                    prefabToUse = crosswalkPrefab;
-                    tileName = "Crosswalk";
+                    AddCombineInstance(crosswalkCombine, crosswalkPrefab, matrix);
                 }
                 else if (landMap[x, y] == LandType.Road)
                 {
-                    prefabToUse = roadPrefab;
-                    tileName = "Road";
+                    AddCombineInstance(roadCombine, roadPrefab, matrix);
                 }
                 else
                 {
-                    tileName = buildingMap[y, x] > 0 ? $"Lot_{buildingMap[y, x]}" : "Lot";
+                    AddCombineInstance(siteCombine, sitePrefab, matrix);
                 }
-
-                GameObject tile = Instantiate(prefabToUse, position, Quaternion.identity, groundParent.transform);
-                tile.name = $"{tileName}_{x}_{y}";
-                tile.transform.localScale = new Vector3(cellWidth, 1f, cellHeight);
             }
         }
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
 
+        // Sites/Roads/Crosswalksでそれぞれ数万頂点規模になり得るため、CombineMeshes自体を
+        // 1回ずつに分けてyieldする（プロファイル計測でCombineMeshes全体が最大の単一コストだったため）。
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.Sites");
+        CreateCombinedTileMesh("Sites", sitePrefab, siteCombine);
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.Roads");
+        CreateCombinedTileMesh("Roads", roadPrefab, roadCombine);
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.Crosswalks");
+        CreateCombinedTileMesh("Crosswalks", crosswalkPrefab, crosswalkCombine);
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("PlaceGuardrails");
         PlaceGuardrails();
-        PlaceBuildings();
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        yield return PlaceBuildingsRoutine();
+    }
+
+    private void AddCombineInstance(List<CombineInstance> combineInstances, GameObject prefab, Matrix4x4 matrix)
+    {
+        MeshFilter prefabMeshFilter = prefab.GetComponentInChildren<MeshFilter>();
+        if (prefabMeshFilter == null || prefabMeshFilter.sharedMesh == null)
+        {
+            return;
+        }
+
+        combineInstances.Add(new CombineInstance
+        {
+            mesh = prefabMeshFilter.sharedMesh,
+            transform = matrix,
+        });
+    }
+
+    // combineInstancesを1つのMeshにまとめ、レンダリングと当たり判定の両方に同じMeshを使い回す。
+    // 敷地・道路・横断歩道はcellWidth×cellHeightの単純な板（Unity組み込みCubeメッシュ）のみを想定しており、
+    // マルチマテリアル・複数サブメッシュのprefabに差し替えた場合はmergeSubMeshes=trueにより見た目が崩れる点に注意。
+    private void CreateCombinedTileMesh(string name, GameObject prefab, List<CombineInstance> combineInstances)
+    {
+        if (prefab == null || combineInstances.Count == 0)
+        {
+            return;
+        }
+
+        MeshRenderer prefabRenderer = prefab.GetComponentInChildren<MeshRenderer>();
+        if (prefabRenderer == null)
+        {
+            return;
+        }
+
+        // 1チャンク分（最大gridWidth×gridHeightセル）を結合すると65,535頂点を超え得るため、
+        // 16bitインデックス（Unity既定）の上限を超えないようUInt32に切り替える。
+        Mesh combinedMesh = new Mesh();
+        combinedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        combinedMesh.CombineMeshes(combineInstances.ToArray(), true, true);
+
+        GameObject combinedObject = new GameObject(name);
+        combinedObject.transform.SetParent(groundParent.transform, false);
+
+        MeshFilter meshFilter = combinedObject.AddComponent<MeshFilter>();
+        meshFilter.sharedMesh = combinedMesh;
+
+        MeshRenderer meshRenderer = combinedObject.AddComponent<MeshRenderer>();
+        meshRenderer.sharedMaterial = prefabRenderer.sharedMaterial;
+
+        MeshCollider meshCollider = combinedObject.AddComponent<MeshCollider>();
+        meshCollider.sharedMesh = combinedMesh;
     }
 
     private void PlaceGuardrails()
@@ -1339,64 +1746,98 @@ public class GenerateClusterBuildings : MonoBehaviour
         return Quaternion.identity;
     }
 
-    private void PlaceBuildings()
+    private struct LotBounds
     {
-        Dictionary<int, (Vector3 pos, int width, int height)> lotData = new Dictionary<int, (Vector3, int, int)>();
+        public int minX, maxX, minY, maxY;
+    }
 
+    private IEnumerator PlaceBuildingsRoutine()
+    {
+        // 以前の実装は「未処理の敷地IDを見つけるたびにグリッド全体を再走査」しており、
+        // 敷地数×グリッド全セル数のオーダーになっていた（Profilerでこの関数のSelf時間が
+        // 突出していた主因）。1回の全セル走査で全敷地のバウンディングボックスを同時に
+        // 求めるよう修正し、O(グリッド全セル数)に削減した。
+        UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.ComputeLotBounds");
+        Dictionary<int, LotBounds> lotBounds = new Dictionary<int, LotBounds>();
         for (int y = 0; y < gridHeight; y++)
         {
             for (int x = 0; x < gridWidth; x++)
             {
-                if (buildingMap[y, x] > 0 && !guardrailMap[x, y] && !trafficLightMap[x, y])
+                if (buildingMap[y, x] <= 0 || guardrailMap[x, y] || trafficLightMap[x, y])
                 {
-                    int lotId = buildingMap[y, x];
-                    if (!lotData.ContainsKey(lotId))
-                    {
-                        int minX = x, maxX = x;
-                        int minY = y, maxY = y;
+                    continue;
+                }
 
-                        for (int yy = 0; yy < gridHeight; yy++)
-                        {
-                            for (int xx = 0; xx < gridWidth; xx++)
-                            {
-                                if (buildingMap[yy, xx] == lotId && !guardrailMap[xx, yy] && !trafficLightMap[xx, yy])
-                                {
-                                    minX = Mathf.Min(minX, xx);
-                                    maxX = Mathf.Max(maxX, xx);
-                                    minY = Mathf.Min(minY, yy);
-                                    maxY = Mathf.Max(maxY, yy);
-                                }
-                            }
-                        }
-
-                        int width = maxX - minX + 1;
-                        int height = maxY - minY + 1;
-                        Vector3 lotCenterPos = transform.position + new Vector3((minX + width / 2.0f) * cellWidth, 0.5f, (minY + height / 2.0f) * cellHeight);
-
-                        lotData[lotId] = (lotCenterPos, width, height);
-                    }
+                int lotId = buildingMap[y, x];
+                if (lotBounds.TryGetValue(lotId, out LotBounds bounds))
+                {
+                    bounds.minX = Mathf.Min(bounds.minX, x);
+                    bounds.maxX = Mathf.Max(bounds.maxX, x);
+                    bounds.minY = Mathf.Min(bounds.minY, y);
+                    bounds.maxY = Mathf.Max(bounds.maxY, y);
+                    lotBounds[lotId] = bounds;
+                }
+                else
+                {
+                    lotBounds[lotId] = new LotBounds { minX = x, maxX = x, minY = y, maxY = y };
                 }
             }
         }
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
 
         GameObject buildingsParent = new GameObject("Buildings");
         buildingsParent.transform.SetParent(groundParent.transform, false);
 
-        foreach (var kvp in lotData)
+        UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.Instantiate");
+        int placedSinceYield = 0;
+        foreach (KeyValuePair<int, LotBounds> kvp in lotBounds)
         {
             int lotId = kvp.Key;
-            Vector3 position = kvp.Value.pos;
-            int width = kvp.Value.width;
-            int height = kvp.Value.height;
 
-            if (billPrefab != null)
+            // 破壊済みの建物はチャンク再生成時に復活させない。
+            if (destroyedLotIds.Contains(lotId))
             {
-                GameObject building = Instantiate(billPrefab, position, Quaternion.identity, buildingsParent.transform);
+                continue;
+            }
+
+            LotBounds bounds = kvp.Value;
+            int width = bounds.maxX - bounds.minX + 1;
+            int height = bounds.maxY - bounds.minY + 1;
+            Vector3 position = transform.position + new Vector3((bounds.minX + width / 2.0f) * cellWidth, 0.5f, (bounds.minY + height / 2.0f) * cellHeight);
+
+            float distance = Vector2.Distance(
+                new Vector2(position.x, position.z),
+                new Vector2(distanceOriginWorldPosition.x, distanceOriginWorldPosition.z));
+            GameObject prefabToUse = raritySettings != null ? raritySettings.Pick(distance, billPrefab) : billPrefab;
+
+            if (prefabToUse != null)
+            {
+                GameObject building = Instantiate(prefabToUse, position, Quaternion.identity, buildingsParent.transform);
                 building.name = $"Building_{lotId}";
-                building.transform.localScale = new Vector3(width * cellWidth, 1f, height * cellHeight);
+                float originalHeightScale = prefabToUse.transform.localScale.y;
+                building.transform.localScale = new Vector3(width * cellWidth, originalHeightScale, height * cellHeight);
+
+                BuildingInstance buildingInstance = building.AddComponent<BuildingInstance>();
+                buildingInstance.Initialize(chunkCoord, lotId);
+            }
+
+            placedSinceYield++;
+            if (placedSinceYield >= buildingsInstantiatedPerFrame)
+            {
+                placedSinceYield = 0;
+                UnityEngine.Profiling.Profiler.EndSample();
+                yield return null;
+                UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.Instantiate");
             }
         }
+        UnityEngine.Profiling.Profiler.EndSample();
     }
+
+    public int GridWidth => gridWidth;
+    public int GridHeight => gridHeight;
+    public float CellWidth => cellWidth;
+    public float CellHeight => cellHeight;
 
     public LandType GetCell(int x, int y)
     {

@@ -3,9 +3,34 @@
 [Oo]bj/
 [Ll]ogs/
 [Uu]serSettings/
+[Mm]emoryCaptures/
+ProfilerCaptures/
+[Aa]ssets/_Recovery/
 
 .vs/
 .idea/
 
 Build/
 Builds/
+[Bb]uild/
+[Bb]uilds/
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+crashlytics-build.properties
