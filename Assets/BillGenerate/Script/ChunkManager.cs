@@ -58,6 +58,21 @@ public class ChunkManager : MonoBehaviour
     private float ChunkWorldWidth => chunkPrefab.GridWidth * chunkPrefab.CellWidth;
     private float ChunkWorldHeight => chunkPrefab.GridHeight * chunkPrefab.CellHeight;
 
+    // タスク12：チャンクの生成コルーチンが完了した瞬間を外部（PlayerSpawner等）から購読できるようにする。
+    // GenerateChunkは複数フレームに分割されたコルーチンのため、生成完了は「呼んだ直後」ではなく
+    // このイベント（またはTryGetLoadedChunkでの事後確認）でしか正確に検知できない。
+    public event Action<Vector2Int, GenerateClusterBuildings> ChunkGenerated;
+
+    public bool TryGetLoadedChunk(Vector2Int coord, out GenerateClusterBuildings chunk)
+    {
+        return loadedChunks.TryGetValue(coord, out chunk);
+    }
+
+    public Vector2Int GetChunkCoordForWorldPosition(Vector3 worldPosition)
+    {
+        return WorldToChunkCoord(worldPosition, ChunkWorldWidth, ChunkWorldHeight);
+    }
+
     public float LoadRadiusMeters =>
         useManualRadius
             ? manualRadiusMeters
@@ -277,6 +292,7 @@ public class ChunkManager : MonoBehaviour
         }
 
         loadedChunks[coord] = chunk;
+        ChunkGenerated?.Invoke(coord, chunk);
     }
 
     private void DeactivateChunk(Vector2Int coord)

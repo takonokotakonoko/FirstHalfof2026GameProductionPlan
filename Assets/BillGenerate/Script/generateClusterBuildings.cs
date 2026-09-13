@@ -84,6 +84,20 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] private GameObject billPrefab;
     [SerializeField] private GameObject crosswalkPrefab;
 
+    [Header("Road Tile Variants (Major, タスク10)")]
+    [Tooltip("未設定ならroadPrefabにフォールバックする。対向車線側（帯の中央寄り）のタイル。センターライン用。")]
+    [SerializeField] private GameObject majorRoadInteriorPrefab;
+    [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
+    [SerializeField] private GameObject majorRoadEdgePrefab;
+    [Tooltip("未設定ならroadPrefabにフォールバックする。チャンク境界側（外周道路帯）のタイル。")]
+    [SerializeField] private GameObject majorRoadChunkBoundaryPrefab;
+    [Tooltip("未設定ならroadPrefabにフォールバックする。交差点タイル（現状は十字路のみ想定）。")]
+    [SerializeField] private GameObject majorRoadIntersectionPrefab;
+
+    [Header("Road Tile Variants (Local, タスク10)")]
+    [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
+    [SerializeField] private GameObject localRoadEdgePrefab;
+
     [Header("Building Rarity")]
     [Tooltip("未設定の場合は常にbillPrefabを使用する。設定すると距離に応じて抽選されたプレファブを使用する。")]
     [SerializeField] private BuildingRaritySettings raritySettings;
@@ -102,6 +116,17 @@ public class GenerateClusterBuildings : MonoBehaviour
         new Vector2Int(0, 1),
     };
 
+    // タスク10（道路タイルの向き）用の分類。見た目（プレファブ・回転）はまだ割り当てず、
+    // 判定結果のみを持つ。NotRoad以外はGetRoadTileRotationと組み合わせて使う想定。
+    private enum RoadTileKind
+    {
+        NotRoad,
+        Interior,            // 対向車線側（センターライン候補）
+        EdgeToSidewalk,      // 歩道・敷地側（L型側溝候補）
+        EdgeToChunkBoundary, // チャンク境界側（隣チャンクの状態を参照できない）
+        Intersection,        // 交差点内
+    }
+
     private LandType[,] landMap;
     private int[,] buildingMap;
     private RoadClass[,] roadClassMap;
@@ -110,6 +135,14 @@ public class GenerateClusterBuildings : MonoBehaviour
     private bool[,] crosswalkMap;
     private bool[,] portalMap;
     private int[,] localRoadDistanceFromMajor;
+
+    // Major道路帯の向き情報（タスク10）。帯を塗った箇所（PaintRoadLinesByPositions等）でのみ書き込まれる。
+    // roadOffsetFromNearEdge/FarEdgeは-1が「Major道路帯として記録されていない」を表す。
+    private bool[,] roadStripIsVertical;
+    private int[,] roadOffsetFromNearEdge;
+    private int[,] roadOffsetFromFarEdge;
+    private bool[,] isMajorIntersectionCell;
+
     private GameObject groundParent;
     private Vector2Int chunkCoord;
     private readonly HashSet<int> destroyedLotIds = new HashSet<int>();
@@ -202,6 +235,10 @@ public class GenerateClusterBuildings : MonoBehaviour
         crosswalkMap = new bool[gridWidth, gridHeight];
         portalMap = new bool[gridWidth, gridHeight];
         localRoadDistanceFromMajor = new int[gridWidth, gridHeight];
+        roadStripIsVertical = new bool[gridWidth, gridHeight];
+        roadOffsetFromNearEdge = new int[gridWidth, gridHeight];
+        roadOffsetFromFarEdge = new int[gridWidth, gridHeight];
+        isMajorIntersectionCell = new bool[gridWidth, gridHeight];
 
         for (int x = 0; x < gridWidth; x++)
         {
@@ -215,6 +252,10 @@ public class GenerateClusterBuildings : MonoBehaviour
                 crosswalkMap[x, y] = false;
                 portalMap[x, y] = false;
                 localRoadDistanceFromMajor[x, y] = -1;
+                roadStripIsVertical[x, y] = false;
+                roadOffsetFromNearEdge[x, y] = -1;
+                roadOffsetFromFarEdge[x, y] = -1;
+                isMajorIntersectionCell[x, y] = false;
             }
         }
 
@@ -298,10 +339,16 @@ public class GenerateClusterBuildings : MonoBehaviour
                 bool isBottomEdge = y < boundaryWidth;
                 bool isTopEdge = y >= gridHeight - boundaryWidth;
 
-                if (isLeftEdge || isRightEdge || isBottomEdge || isTopEdge)
+                if (!isLeftEdge && !isRightEdge && !isBottomEdge && !isTopEdge)
                 {
-                    MarkRoadCell(x, y, RoadClass.Major);
+                    continue;
                 }
+
+                // 四隅は左右・上下どちらの帯とも言えるが、回転角の判定に軸情報が要るため
+                // 左右境界を優先してisVertical=trueとして記録する（コーナーの見た目調整は将来の課題）。
+                // オフセットはClassifyMajorRoadTileでEdgeToChunkBoundaryとして無条件に扱われるため使われない。
+                bool isVertical = isLeftEdge || isRightEdge;
+                MarkMajorRoadStripCell(x, y, isVertical, 0, boundaryWidth);
             }
         }
     }
@@ -404,7 +451,7 @@ public class GenerateClusterBuildings : MonoBehaviour
 
                 for (int y = 0; y < gridHeight; y++)
                 {
-                    MarkRoadCell(local, y, RoadClass.Major);
+                    MarkMajorRoadStripCell(local, y, true, offset, majorRoadWidth);
                 }
             }
             else
@@ -416,7 +463,7 @@ public class GenerateClusterBuildings : MonoBehaviour
 
                 for (int x = 0; x < gridWidth; x++)
                 {
-                    MarkRoadCell(x, local, RoadClass.Major);
+                    MarkMajorRoadStripCell(x, local, false, offset, majorRoadWidth);
                 }
             }
         }
@@ -548,7 +595,7 @@ public class GenerateClusterBuildings : MonoBehaviour
             {
                 for (int offset = 0; offset < width; offset++)
                 {
-                    MarkRoadCell(position + offset, y, RoadClass.Major);
+                    MarkMajorRoadStripCell(position + offset, y, true, offset, width);
                 }
             }
         }
@@ -558,7 +605,7 @@ public class GenerateClusterBuildings : MonoBehaviour
             {
                 for (int offset = 0; offset < width; offset++)
                 {
-                    MarkRoadCell(x, position + offset, RoadClass.Major);
+                    MarkMajorRoadStripCell(x, position + offset, false, offset, width);
                 }
             }
         }
@@ -592,7 +639,7 @@ public class GenerateClusterBuildings : MonoBehaviour
                         int targetX = x + offset;
                         if (targetX < gridWidth)
                         {
-                            MarkRoadCell(targetX, y, RoadClass.Major);
+                            MarkMajorRoadStripCell(targetX, y, true, offset, width);
                         }
                     }
                 }
@@ -609,7 +656,7 @@ public class GenerateClusterBuildings : MonoBehaviour
                         int targetY = y + offset;
                         if (targetY < gridHeight)
                         {
-                            MarkRoadCell(x, targetY, RoadClass.Major);
+                            MarkMajorRoadStripCell(x, targetY, false, offset, width);
                         }
                     }
                 }
@@ -634,6 +681,140 @@ public class GenerateClusterBuildings : MonoBehaviour
         {
             roadClassMap[x, y] = RoadClass.Local;
         }
+    }
+
+    // Major道路の帯を塗る箇所（PaintRoadStrip/PaintLatticeLine/PaintRoadLinesByPositions）専用。
+    // 帯の軸方向と、帯の中で近い端・遠い端から何列目かを記録する（タスク10：道路タイルの向き判定用）。
+    // 既に別軸の帯として記録済みのセルに塗る場合は、南北・東西の帯が重なる交差点とみなす。
+    private void MarkMajorRoadStripCell(int x, int y, bool isVertical, int offsetFromNearEdge, int stripWidth)
+    {
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            return;
+        }
+
+        bool wasAlreadyMajor = roadClassMap[x, y] == RoadClass.Major;
+        bool crossesOtherAxis = wasAlreadyMajor && roadOffsetFromNearEdge[x, y] >= 0 && roadStripIsVertical[x, y] != isVertical;
+
+        MarkRoadCell(x, y, RoadClass.Major);
+
+        if (crossesOtherAxis)
+        {
+            isMajorIntersectionCell[x, y] = true;
+            return;
+        }
+
+        roadStripIsVertical[x, y] = isVertical;
+        roadOffsetFromNearEdge[x, y] = offsetFromNearEdge;
+        roadOffsetFromFarEdge[x, y] = stripWidth - 1 - offsetFromNearEdge;
+    }
+
+    // Major道路セル1つの分類を判定する（タスク10：見た目の割り当てはまだ行わない）。
+    private RoadTileKind ClassifyMajorRoadTile(int x, int y)
+    {
+        if (roadClassMap[x, y] != RoadClass.Major)
+        {
+            return RoadTileKind.NotRoad;
+        }
+
+        // チャンクの最外周セル（外周道路帯）は対岸＝隣接チャンク側の状態を参照できないため、
+        // 帯のオフセット判定を行わず一律チャンク境界として扱う。
+        if (x == 0 || x == gridWidth - 1 || y == 0 || y == gridHeight - 1)
+        {
+            return RoadTileKind.EdgeToChunkBoundary;
+        }
+
+        if (isMajorIntersectionCell[x, y] || HasAdjacentDifferentAxisMajorRoad(x, y))
+        {
+            return RoadTileKind.Intersection;
+        }
+
+        bool isEdge = roadOffsetFromNearEdge[x, y] == 0 || roadOffsetFromFarEdge[x, y] == 0;
+        return isEdge ? RoadTileKind.EdgeToSidewalk : RoadTileKind.Interior;
+    }
+
+    // RecursiveSubdivisionモード（区画分割方式）では、T字路の接続部分は「同じセルが2軸から
+    // 重複して塗られる」形にならず、帯同士が隣接するだけになる（例：垂直帯の側面に水平帯の端が接する）。
+    // isMajorIntersectionCellだけではこのケースを検出できないため、4方向いずれかに自分と異なる
+    // 軸のMajor道路帯が隣接していないかを見て補完する。
+    private bool HasAdjacentDifferentAxisMajorRoad(int x, int y)
+    {
+        bool isVertical = roadStripIsVertical[x, y];
+
+        if (x > 0 && roadClassMap[x - 1, y] == RoadClass.Major && roadStripIsVertical[x - 1, y] != isVertical) return true;
+        if (x < gridWidth - 1 && roadClassMap[x + 1, y] == RoadClass.Major && roadStripIsVertical[x + 1, y] != isVertical) return true;
+        if (y > 0 && roadClassMap[x, y - 1] == RoadClass.Major && roadStripIsVertical[x, y - 1] != isVertical) return true;
+        if (y < gridHeight - 1 && roadClassMap[x, y + 1] == RoadClass.Major && roadStripIsVertical[x, y + 1] != isVertical) return true;
+
+        return false;
+    }
+
+    // Local道路（生活道路）セル1つの分類を判定する。センターラインは持たせない方針のため、
+    // 帯のオフセット情報は使わず、隣接セルがLotかどうかだけを見る動的判定にしている。
+    private RoadTileKind ClassifyLocalRoadTile(int x, int y)
+    {
+        if (roadClassMap[x, y] != RoadClass.Local)
+        {
+            return RoadTileKind.NotRoad;
+        }
+
+        bool hasLotLeft = x > 0 && landMap[x - 1, y] == LandType.Lot;
+        bool hasLotRight = x < gridWidth - 1 && landMap[x + 1, y] == LandType.Lot;
+        bool hasLotUp = y > 0 && landMap[x, y - 1] == LandType.Lot;
+        bool hasLotDown = y < gridHeight - 1 && landMap[x, y + 1] == LandType.Lot;
+
+        return (hasLotLeft || hasLotRight || hasLotUp || hasLotDown) ? RoadTileKind.EdgeToSidewalk : RoadTileKind.Interior;
+    }
+
+    // Major道路タイルの回転角を求める。プレファブ側の前提：ローカルZ軸方向に沿って
+    // センターライン／L型側溝の模様が伸びているものとする（isVertical=trueの帯なら無回転で正面が合う）。
+    // Intersection（交差点）は十字路のみを想定し、対称なプレファブを前提に常に無回転とする
+    // （実際にはT字/L字になる場所もあるが、見た目の妥協として許容する。詳細は基本設計.md参照）。
+    private Quaternion GetMajorRoadTileRotation(int x, int y, RoadTileKind kind)
+    {
+        switch (kind)
+        {
+            case RoadTileKind.Interior:
+            case RoadTileKind.EdgeToChunkBoundary:
+                return Quaternion.Euler(0f, roadStripIsVertical[x, y] ? 0f : 90f, 0f);
+
+            case RoadTileKind.EdgeToSidewalk:
+                {
+                    float baseYaw = roadStripIsVertical[x, y] ? 0f : 90f;
+                    // 帯の反対側の縁（Far側）は180度反転させ、L型側溝が歩道側を向くようにする。
+                    if (roadOffsetFromFarEdge[x, y] == 0)
+                    {
+                        baseYaw += 180f;
+                    }
+
+                    return Quaternion.Euler(0f, baseYaw, 0f);
+                }
+
+            case RoadTileKind.Intersection:
+            case RoadTileKind.NotRoad:
+            default:
+                return Quaternion.identity;
+        }
+    }
+
+    // Local道路（生活道路）タイルの回転角を求める。既存のGetGuardrailRotationと同じ考え方で、
+    // 隣接するLot方向を見てL型側溝の向きを合わせる。複数方向にLotが隣接する角セルは
+    // 左→右→上→下の優先順位で最初に該当した方向を採用する（詳細な複合パターンは将来の課題）。
+    private Quaternion GetLocalRoadTileRotation(int x, int y, RoadTileKind kind)
+    {
+        if (kind != RoadTileKind.EdgeToSidewalk)
+        {
+            return Quaternion.identity;
+        }
+
+        bool hasLotLeft = x > 0 && landMap[x - 1, y] == LandType.Lot;
+        bool hasLotRight = x < gridWidth - 1 && landMap[x + 1, y] == LandType.Lot;
+        bool hasLotUp = y > 0 && landMap[x, y - 1] == LandType.Lot;
+
+        if (hasLotLeft) return Quaternion.Euler(0f, 270f, 0f);
+        if (hasLotRight) return Quaternion.Euler(0f, 90f, 0f);
+        if (hasLotUp) return Quaternion.Euler(0f, 180f, 0f);
+        return Quaternion.identity;
     }
 
     private void GenerateLots()
@@ -1577,7 +1758,9 @@ public class GenerateClusterBuildings : MonoBehaviour
         // ガードレール」を設置する可能性がある（BuildingInstanceと同じパターンを流用する想定）ため、
         // 結合せず個別GameObjectのまま残す。結合してしまうと1本だけ個別に破壊することができなくなるため。
         List<CombineInstance> siteCombine = new List<CombineInstance>();
-        List<CombineInstance> roadCombine = new List<CombineInstance>();
+        // タスク10：道路タイルはセルごとに使うプレファブ（センターライン/L型側溝等）が変わり得るため、
+        // プレファブ種類ごとにCombineInstanceリストを持つ辞書で管理する。
+        Dictionary<GameObject, List<CombineInstance>> roadCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
         List<CombineInstance> crosswalkCombine = new List<CombineInstance>();
 
         UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CollectCombineInstances");
@@ -1609,7 +1792,9 @@ public class GenerateClusterBuildings : MonoBehaviour
                 }
                 else if (landMap[x, y] == LandType.Road)
                 {
-                    AddCombineInstance(roadCombine, roadPrefab, matrix);
+                    GameObject roadVariantPrefab = GetRoadTileVariant(x, y, out Quaternion roadRotation);
+                    Matrix4x4 roadMatrix = Matrix4x4.TRS(localPosition, roadRotation, scale);
+                    AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadVariantPrefab), roadVariantPrefab, roadMatrix);
                 }
                 else
                 {
@@ -1628,7 +1813,10 @@ public class GenerateClusterBuildings : MonoBehaviour
         yield return null;
 
         UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.Roads");
-        CreateCombinedTileMesh("Roads", roadPrefab, roadCombine);
+        foreach (KeyValuePair<GameObject, List<CombineInstance>> roadVariant in roadCombineByPrefab)
+        {
+            CreateCombinedTileMesh($"Roads_{roadVariant.Key.name}", roadVariant.Key, roadVariant.Value);
+        }
         UnityEngine.Profiling.Profiler.EndSample();
         yield return null;
 
@@ -1643,6 +1831,48 @@ public class GenerateClusterBuildings : MonoBehaviour
         yield return null;
 
         yield return PlaceBuildingsRoutine();
+    }
+
+    // セルの分類（RoadTileKind）から、実際に使う道路タイルのプレファブと回転を決める。
+    // 対応するバリエーションが未設定（null）の場合は既存のroadPrefabにフォールバックするため、
+    // テクスチャ・プレファブが未整備のままでも従来通りの見た目で動作する。
+    private GameObject GetRoadTileVariant(int x, int y, out Quaternion rotation)
+    {
+        if (roadClassMap[x, y] == RoadClass.Major)
+        {
+            RoadTileKind kind = ClassifyMajorRoadTile(x, y);
+            rotation = GetMajorRoadTileRotation(x, y, kind);
+
+            GameObject variant = kind switch
+            {
+                RoadTileKind.Interior => majorRoadInteriorPrefab,
+                RoadTileKind.EdgeToSidewalk => majorRoadEdgePrefab,
+                RoadTileKind.EdgeToChunkBoundary => majorRoadChunkBoundaryPrefab,
+                RoadTileKind.Intersection => majorRoadIntersectionPrefab,
+                _ => null,
+            };
+
+            return variant != null ? variant : roadPrefab;
+        }
+        else
+        {
+            RoadTileKind kind = ClassifyLocalRoadTile(x, y);
+            rotation = GetLocalRoadTileRotation(x, y, kind);
+
+            GameObject variant = kind == RoadTileKind.EdgeToSidewalk ? localRoadEdgePrefab : null;
+            return variant != null ? variant : roadPrefab;
+        }
+    }
+
+    private List<CombineInstance> GetOrCreateCombineList(Dictionary<GameObject, List<CombineInstance>> combineByPrefab, GameObject prefab)
+    {
+        if (!combineByPrefab.TryGetValue(prefab, out List<CombineInstance> list))
+        {
+            list = new List<CombineInstance>();
+            combineByPrefab[prefab] = list;
+        }
+
+        return list;
     }
 
     private void AddCombineInstance(List<CombineInstance> combineInstances, GameObject prefab, Matrix4x4 matrix)
@@ -1813,10 +2043,19 @@ public class GenerateClusterBuildings : MonoBehaviour
 
             if (prefabToUse != null)
             {
-                GameObject building = Instantiate(prefabToUse, position, Quaternion.identity, buildingsParent.transform);
+                // 建物の正面の向きをばらばらにするため、0/90/180/270度からランダムに回転させる。
+                // 90度・270度回転時はワールドのX/Z軸が入れ替わるため、スケールに割り当てるwidth/heightも
+                // 入れ替えることで、どの回転角でも敷地の矩形からはみ出さないようにする。
+                int rotationSteps = Random.Range(0, 4);
+                Quaternion rotation = Quaternion.Euler(0f, rotationSteps * 90f, 0f);
+                bool axisSwapped = rotationSteps % 2 == 1;
+
+                GameObject building = Instantiate(prefabToUse, position, rotation, buildingsParent.transform);
                 building.name = $"Building_{lotId}";
                 float originalHeightScale = prefabToUse.transform.localScale.y;
-                building.transform.localScale = new Vector3(width * cellWidth, originalHeightScale, height * cellHeight);
+                float scaleX = (axisSwapped ? height : width) * cellWidth;
+                float scaleZ = (axisSwapped ? width : height) * cellHeight;
+                building.transform.localScale = new Vector3(scaleX, originalHeightScale, scaleZ);
 
                 BuildingInstance buildingInstance = building.AddComponent<BuildingInstance>();
                 buildingInstance.Initialize(chunkCoord, lotId);
@@ -1847,6 +2086,79 @@ public class GenerateClusterBuildings : MonoBehaviour
         }
 
         return landMap[x, y];
+    }
+
+    // タスク12：指定したワールド座標から最も近い基幹道路（RoadClass.Major）セルを螺旋状に探索し、
+    // そのセル中心のワールド座標を返す。プレイヤーの初期スポーン地点が建物の中にならないようにするため、
+    // 「基幹道路の上」を安全な着地点として使う想定。同じ距離（同じ半径のリング）に複数の候補があれば
+    // ランダムに1つを選ぶ。このチャンクの範囲内に基幹道路が1つも無い場合はfalseを返す
+    // （外周道路が有効な既定設定では通常発生しない）。
+    public bool TryFindNearestMajorRoadCell(Vector3 worldPosition, out Vector3 resultWorldPosition)
+    {
+        resultWorldPosition = Vector3.zero;
+
+        if (roadClassMap == null)
+        {
+            return false;
+        }
+
+        Vector3 local = worldPosition - transform.position;
+        int centerX = Mathf.Clamp(Mathf.FloorToInt(local.x / cellWidth), 0, gridWidth - 1);
+        int centerY = Mathf.Clamp(Mathf.FloorToInt(local.z / cellHeight), 0, gridHeight - 1);
+
+        int maxRadius = Mathf.Max(gridWidth, gridHeight);
+        List<Vector2Int> candidates = new List<Vector2Int>();
+
+        for (int radius = 0; radius <= maxRadius; radius++)
+        {
+            CollectMajorRoadRingCandidates(centerX, centerY, radius, candidates);
+            if (candidates.Count > 0)
+            {
+                Vector2Int chosen = candidates[Random.Range(0, candidates.Count)];
+                resultWorldPosition = transform.position + new Vector3((chosen.x + 0.5f) * cellWidth, 0f, (chosen.y + 0.5f) * cellHeight);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // 中心セルから半径radiusの正方形リング上にある基幹道路セルだけをcandidatesに集める。
+    // radius=0,1,2,...の順に呼び出せば、中心から近い順（同心円ではなく同心の正方形）に走査できる。
+    private void CollectMajorRoadRingCandidates(int centerX, int centerY, int radius, List<Vector2Int> candidates)
+    {
+        candidates.Clear();
+
+        if (radius == 0)
+        {
+            AddIfMajorRoadCell(centerX, centerY, candidates);
+            return;
+        }
+
+        for (int dx = -radius; dx <= radius; dx++)
+        {
+            AddIfMajorRoadCell(centerX + dx, centerY - radius, candidates);
+            AddIfMajorRoadCell(centerX + dx, centerY + radius, candidates);
+        }
+
+        for (int dy = -radius + 1; dy <= radius - 1; dy++)
+        {
+            AddIfMajorRoadCell(centerX - radius, centerY + dy, candidates);
+            AddIfMajorRoadCell(centerX + radius, centerY + dy, candidates);
+        }
+    }
+
+    private void AddIfMajorRoadCell(int x, int y, List<Vector2Int> candidates)
+    {
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            return;
+        }
+
+        if (roadClassMap[x, y] == RoadClass.Major)
+        {
+            candidates.Add(new Vector2Int(x, y));
+        }
     }
 
     private void OnDrawGizmos()
