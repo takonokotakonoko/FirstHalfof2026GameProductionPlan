@@ -11,7 +11,9 @@ public class PlayerAttack : MonoBehaviour
         Fist,
         Sword,
         Gun,
-        Bomb
+        Bomb,
+        BigSword,
+        Dice
     }
 
     public enum AttackMode
@@ -51,10 +53,19 @@ public class PlayerAttack : MonoBehaviour
         public AttackVisuals visuals;
     }
 
+    [System.Serializable]
+    public class WeaponAnimatorProfile
+    {
+        public WeaponType weaponType;
+        public Animator animator;
+        public string normalTrigger = "Attack";
+        public string skillTrigger = "SkillAttack";
+    }
+
     [Header("使える武器は1つのみ")]
     [SerializeField] private List<WeaponType> usableWeapons = new List<WeaponType>
     {
-        WeaponType.Sword
+        WeaponType.Fist
     };
 
     [Header("武器ごとの通常攻撃 / スキル攻撃")]
@@ -83,6 +94,18 @@ public class PlayerAttack : MonoBehaviour
             weaponType = WeaponType.Bomb,
             normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.5f, radius = 1.5f, damage = 45f, offset = 1.2f, cooldown = 0.75f, gizmoColor = Color.yellow },
             skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 5.0f, radius = 2.2f, damage = 90f, offset = 1.6f, cooldown = 2.0f, gizmoColor = Color.white }
+        },
+        new WeaponProfile
+        {
+            weaponType = WeaponType.BigSword,
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.2f, radius = 1.1f, damage = 42f, offset = 1.0f, cooldown = 0.42f, gizmoColor = Color.green },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 6.0f, radius = 1.8f, damage = 95f, offset = 1.5f, cooldown = 1.35f, gizmoColor = Color.green }
+        },
+        new WeaponProfile
+        {
+            weaponType = WeaponType.Dice,
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 4.2f, radius = 1.2f, damage = 55f, offset = 1.4f, cooldown = 0.55f, gizmoColor = Color.gray },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 7.5f, radius = 2.4f, damage = 130f, offset = 1.8f, cooldown = 1.8f, gizmoColor = Color.white }
         }
     };
 
@@ -105,9 +128,13 @@ public class PlayerAttack : MonoBehaviour
     private Dictionary<WeaponType, WeaponProfile> weaponMap;
     private float normalReadyTime;
     private float skillReadyTime;
+    private bool isAttackAnimating;
+    [Header("武器ごとのアニメーション")]
+    [SerializeField] private List<WeaponAnimatorProfile> weaponAnimators = new List<WeaponAnimatorProfile>();
 
     private void Awake()
     {
+        EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
         ApplyUsableWeaponStates();
         ConfigureCooldownGauge(normalCooldownGauge);
@@ -130,8 +157,41 @@ public class PlayerAttack : MonoBehaviour
                 usableWeapons.RemoveAt(i);
         }
 
+        EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
         ApplyUsableWeaponStates();
+    }
+
+    private void EnsureWeaponAnimatorEntries()
+    {
+        if (weaponAnimators == null)
+            weaponAnimators = new List<WeaponAnimatorProfile>();
+
+        bool hasFistAnimator = false;
+        foreach (var animatorProfile in weaponAnimators)
+        {
+            if (animatorProfile == null)
+                continue;
+
+            if (animatorProfile.weaponType == WeaponType.Fist)
+            {
+                hasFistAnimator = true;
+                if (string.IsNullOrEmpty(animatorProfile.normalTrigger))
+                    animatorProfile.normalTrigger = "PunchLeft";
+                if (string.IsNullOrEmpty(animatorProfile.skillTrigger))
+                    animatorProfile.skillTrigger = "PunchRight";
+            }
+        }
+
+        if (!hasFistAnimator)
+        {
+            weaponAnimators.Add(new WeaponAnimatorProfile
+            {
+                weaponType = WeaponType.Fist,
+                normalTrigger = "PunchLeft",
+                skillTrigger = "PunchRight"
+            });
+        }
     }
 
     private void BuildWeaponMap()
@@ -170,17 +230,16 @@ public class PlayerAttack : MonoBehaviour
     {
         UpdateCooldownDisplay();
 
+        if (isAttackAnimating)
+            return;
+
         if (Input.GetMouseButtonDown(0) && Time.time >= normalReadyTime)
         {
-            var profile = GetCurrentWeaponNormalAttack();
-            if (profile != null)
-                PerformAttack(profile, AttackMode.Normal);
+            BeginAttack(AttackMode.Normal);
         }
         else if (Input.GetMouseButtonDown(1) && Time.time >= skillReadyTime)
         {
-            var profile = GetCurrentWeaponSkillAttack();
-            if (profile != null)
-                PerformAttack(profile, AttackMode.Skill);
+            BeginAttack(AttackMode.Skill);
         }
 
         if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
@@ -212,17 +271,56 @@ public class PlayerAttack : MonoBehaviour
         return weapon != null ? weapon.skillAttack : null;
     }
 
-    private void PerformAttack(AttackProfile profile, AttackMode attackMode)
+    private void BeginAttack(AttackMode attackMode)
     {
+        if (isAttackAnimating)
+            return;
+
+        AttackProfile profile = attackMode == AttackMode.Normal
+            ? GetCurrentWeaponNormalAttack()
+            : GetCurrentWeaponSkillAttack();
+
         if (profile == null)
             return;
 
+        isAttackAnimating = true;
+
         if (attackMode == AttackMode.Normal)
+        {
             normalReadyTime = Time.time + profile.cooldown;
+        }
         else
+        {
             skillReadyTime = Time.time + profile.cooldown;
+        }
+
+        UpdateCooldownDisplay();
+        PlayWeaponAnimation(attackMode);
+    }
+
+    public void OnAttackAnimationFinished()
+    {
+        isAttackAnimating = false;
+    }
+
+    public void OnActionEvent(int actionIndex)
+    {
+        AttackMode attackMode = actionIndex == 1 ? AttackMode.Skill : AttackMode.Normal;
+        AttackProfile profile = attackMode == AttackMode.Normal
+            ? GetCurrentWeaponNormalAttack()
+            : GetCurrentWeaponSkillAttack();
+
+        if (profile == null)
+            return;
 
         PlayAttackVisual();
+        ApplyAttackDamage(profile);
+    }
+
+    private void ApplyAttackDamage(AttackProfile profile)
+    {
+        if (profile == null)
+            return;
 
         Vector3 attackCenter = transform.position + transform.forward * profile.offset + Vector3.up * attackHeight;
         Vector3 halfExtents = new Vector3(profile.radius, attackHeight, profile.range * 0.5f);
@@ -248,7 +346,7 @@ public class PlayerAttack : MonoBehaviour
             }
         }
 
-        Debug.Log($"{profile.mode} 攻�?: {damageCount}体にダメージ {profile.damage}");
+        Debug.Log($"{profile.mode} 攻撃: {damageCount}体にダメージ {profile.damage}");
     }
 
     private void UpdateCooldownDisplay()
@@ -298,6 +396,33 @@ public class PlayerAttack : MonoBehaviour
 
         float remainingTime = Mathf.Max(0f, readyTime - Time.time);
         gauge.fillAmount = Mathf.Clamp01(1f - remainingTime / attack.cooldown);
+    }
+
+    private void PlayWeaponAnimation(AttackMode attackMode)
+    {
+        var weapon = GetCurrentWeaponProfile();
+        if (weapon == null || weaponAnimators == null)
+            return;
+
+        WeaponAnimatorProfile animatorProfile = null;
+        foreach (var profile in weaponAnimators)
+        {
+            if (profile != null && profile.weaponType == weapon.weaponType)
+            {
+                animatorProfile = profile;
+                break;
+            }
+        }
+
+        if (animatorProfile == null || animatorProfile.animator == null)
+            return;
+
+        string triggerName = attackMode == AttackMode.Normal
+            ? animatorProfile.normalTrigger
+            : animatorProfile.skillTrigger;
+
+        if (!string.IsNullOrEmpty(triggerName))
+            animatorProfile.animator.SetTrigger(triggerName);
     }
 
     private void PlayAttackVisual()
