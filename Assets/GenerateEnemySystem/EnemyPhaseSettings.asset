@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 428826cfe9c1079488d089c58dc40baa, type: 3}
+  m_Name: EnemyPhaseSettings
+  m_EditorClassIdentifier: 
+  phases:
+  - phaseName: "\u5E8F\u76E4"
+    startTimeSeconds: 0.1
+    spawnIntervalSeconds: 1
+    maxActiveEnemies: 25
+    clearPreviousPhaseEnemiesOnEnter: 0
+    enemyTypes:
+    - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
+      weight: 1
+  - phaseName: "\u4E2D\u76E4"
+    startTimeSeconds: 180
+    spawnIntervalSeconds: 2
+    maxActiveEnemies: 15
+    clearPreviousPhaseEnemiesOnEnter: 0
+    enemyTypes:
+    - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
+      weight: 1
+  - phaseName: "\u7D42\u76E4"
+    startTimeSeconds: 360
+    spawnIntervalSeconds: 1.5
+    maxActiveEnemies: 20
+    clearPreviousPhaseEnemiesOnEnter: 0
+    enemyTypes:
+    - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
+      weight: 1
+  - phaseName: "\u30DC\u30B9\u6226"
+    startTimeSeconds: 540
+    spawnIntervalSeconds: 1
+    maxActiveEnemies: 5
+    clearPreviousPhaseEnemiesOnEnter: 1
+    enemyTypes:
+    - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
+      weight: 1
