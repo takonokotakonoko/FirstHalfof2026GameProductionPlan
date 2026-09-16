@@ -9,6 +9,12 @@ public class EnemyMove : MonoBehaviour, IDamage
     private float currentHealth;
 
     private Transform target;
+    private EnemyAttack enemyAttack;
+
+    private void Awake()
+    {
+        enemyAttack = GetComponent<EnemyAttack>();
+    }
 
     private void Start()
     {
@@ -21,7 +27,7 @@ public class EnemyMove : MonoBehaviour, IDamage
     public void TakeDamage(float damageAmount)
     {
         currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} ‚É {damageAmount} ƒ_ƒ[ƒWI c‚èHP: {currentHealth}");
+        Debug.Log($"{gameObject.name} ã« {damageAmount} ãƒ€ãƒ¡ãƒ¼ã‚¸ï¼ æ®‹ã‚ŠHP: {currentHealth}");
 
         if (currentHealth <= 0f)
         {
@@ -59,6 +65,12 @@ public class EnemyMove : MonoBehaviour, IDamage
             transform.rotation = Quaternion.LookRotation(moveDirection);
         }
 
-        transform.position = Vector3.MoveTowards(transform.position, target.position, moveSpeed * Time.deltaTime);
+        if (enemyAttack != null && enemyAttack.IsTargetInRange(target))
+            return;
+
+        float stoppingDistance = enemyAttack != null ? enemyAttack.AttackRange : 0f;
+        float distance = moveDirection.magnitude;
+        float moveDistance = Mathf.Min(moveSpeed * Time.deltaTime, Mathf.Max(0f, distance - stoppingDistance));
+        transform.position += moveDirection.normalized * moveDistance;
     }
 }
