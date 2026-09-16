@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3359697690977664291
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3041241285595165926}
+  - component: {fileID: 2806304618458913718}
+  m_Layer: 0
+  m_Name: GenerateClusterBuildings
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3041241285595165926
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3359697690977664291}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: -0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2806304618458913718
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3359697690977664291}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 225e01801d61ca94787b9520986aa6d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GenerateClusterBuildings
+  gridWidth: 200
+  gridHeight: 200
+  cellWidth: 3
+  cellHeight: 3
+  roadGenerationMode: 2
+  majorRoadMinInterval: 17
+  majorRoadMaxInterval: 39
+  majorRoadWidth: 4
+  generateOuterBoundaryRoads: 1
+  randomSeed: 2
+  recursiveSplitStopChance: 0.15
+  latticeVarianceStrength: 0.5
+  latticeBlockMergeChance: 0.25
+  latticeNoiseFrequency: 0.15
+  latticeClusterFrequency: 0.02
+  latticeClusterStrength: 0.6
+  minBuildingSize: 2
+  maxBuildingSize: 6
+  buildingPaddingWidth: 1
+  lotSplitStopChance: 0.8
+  enablePeriodicPortals: 0
+  guardrailPortalInterval: 8
+  portalMinSpacing: 3
+  useManualPortalSeeds: 0
+  manualPortalSeeds: []
+  sitePrefab: {fileID: 4069741886953610972, guid: 2758ba3e9cfea0443b16612396dcf66c, type: 3}
+  roadPrefab: {fileID: 3050748372284957672, guid: b6c8c58dacc01f84aa8d3fda2c0f1d02, type: 3}
+  trafficLightsPrefab: {fileID: 896980898143398672, guid: 3f8e42d7132b0084fbcd4ee055bcda30, type: 3}
+  guardrailPrefab: {fileID: 4416042144200813440, guid: 07ea4870ed0326040a63207632e0449d, type: 3}
+  billPrefab: {fileID: 8587947843282430085, guid: 6ffa8880292850145b253e5a9b800d7e, type: 3}
+  crosswalkPrefab: {fileID: 5580481841995266968, guid: 648eaf5e68fbc4146a01d1d16b14d41f, type: 3}
+  raritySettings: {fileID: 0}
+  distanceOriginWorldPosition: {x: 0, y: 0, z: 0}
+  autoGenerateOnAwake: 0
