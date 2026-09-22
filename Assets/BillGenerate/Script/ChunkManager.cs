@@ -6,38 +6,28 @@ public class ChunkManager : MonoBehaviour
 {
     [Header("Chunk Prefab")]
     [Tooltip("autoGenerateOnAwakeがfalseに設定されたGenerateClusterBuildingsプレファブ。")]
-    [SerializeField] private GenerateClusterBuildings chunkPrefab;
-    [SerializeField] private int globalSeed = 12345;
+    [SerializeField] [JpLabel("チャンクプレファブ")] private GenerateClusterBuildings chunkPrefab;
+    [SerializeField] [JpLabel("グローバルシード")] private int globalSeed = 12345;
 
-    [Header("Load Radius (auto)")]
-    [SerializeField] private float baseSpeedMetersPerMinute = 600f;
-    [Tooltip("移動速度バフによる加算分（＋α）。")]
-    [SerializeField] private float speedBuffMetersPerMinute = 0f;
-    [SerializeField] private float gameTimeMinutes = 20f;
-    [Tooltip("ボス戦などによる時間バッファ（＋α）。")]
-    [SerializeField] private float bossFightBufferMinutes = 5f;
-    [SerializeField] private float safetyMultiplier = 2f;
-
-    [Header("Load Radius (manual override)")]
-    [Tooltip("trueにすると上の自動計算式を無視してmanualRadiusMetersを使う（動作テスト用）。")]
-    [SerializeField] private bool useManualRadius = false;
-    [SerializeField] private float manualRadiusMeters = 3000f;
+    [Header("Load Radius")]
+    [Tooltip("プレイヤー周囲に常時ロードし続ける半径（m）。")]
+    [SerializeField] [JpLabel("ロード半径（m）")] private float manualRadiusMeters = 3000f;
 
     [Header("Streaming")]
-    [SerializeField] private float updateIntervalSeconds = 0.5f;
+    [SerializeField] [JpLabel("更新間隔（秒）")] private float updateIntervalSeconds = 0.5f;
     [Tooltip("読み込み境界での連続ロード/アンロードを防ぐための追加マージン（チャンク数換算）。")]
-    [SerializeField] private int unloadMarginChunks = 1;
+    [SerializeField] [JpLabel("アンロード余裕（チャンク数）")] private int unloadMarginChunks = 1;
     [Tooltip("同時に生成コルーチンを実行中にできるチャンク数の上限。GenerateChunkは複数フレームに分割されたコルーチンで実行されるため、この値は「1tickで開始する数」ではなく「同時に生成が進行中でよい数」を意味する。大きくしすぎると、1フレームあたりに複数チャンク分の生成ステップが重なって再びフレームが重くなる。")]
-    [SerializeField] private int maxChunkLoadsPerTick = 4;
+    [SerializeField] [JpLabel("1tickあたりの同時生成数上限")] private int maxChunkLoadsPerTick = 4;
     [Tooltip("1回のUpdateで非アクティブ化（休眠キャッシュ送り）するチャンク数の上限。")]
-    [SerializeField] private int maxChunkUnloadsPerTick = 8;
+    [SerializeField] [JpLabel("1tickあたりの非アクティブ化上限")] private int maxChunkUnloadsPerTick = 8;
 
     [Header("Chunk Cache")]
     [Tooltip("読み込み範囲外に出たチャンクを即Destroyせず、非アクティブ化した状態でこの数まで保持する。範囲内に戻った際はSetActive(true)するだけで済み、Instantiate/GenerateChunkのやり直しが発生しない。\n" +
         "注意：タイルのオブジェクトプーリング（パフォーマンス課題1）が未対策のため、1チャンクあたり実質数万GameObjectになり得る。この値はチャンク数ではなく「数万×この値」個のGameObjectを同時に非アクティブ保持するコストとして見積もること。大きくしすぎるとGC負荷・メモリ使用量が増え、往復時の再生成コストを削っても総合的には悪化し得る。")]
-    [SerializeField] private int maxDormantChunks = 8;
+    [SerializeField] [JpLabel("休眠キャッシュ上限")] private int maxDormantChunks = 8;
     [Tooltip("休眠キャッシュが上限を超えた場合に、1回のUpdateで実際にDestroy（メモリ解放）するチャンク数の上限。プレイヤーから遠いチャンクから優先的に破棄される。")]
-    [SerializeField] private int maxChunkEvictionsPerTick = 2;
+    [SerializeField] [JpLabel("1tickあたりの破棄数上限")] private int maxChunkEvictionsPerTick = 2;
 
     private Transform player;
     private float updateTimer;
@@ -73,12 +63,7 @@ public class ChunkManager : MonoBehaviour
         return WorldToChunkCoord(worldPosition, ChunkWorldWidth, ChunkWorldHeight);
     }
 
-    public float LoadRadiusMeters =>
-        useManualRadius
-            ? manualRadiusMeters
-            : (baseSpeedMetersPerMinute + speedBuffMetersPerMinute)
-              * (gameTimeMinutes + bossFightBufferMinutes)
-              * safetyMultiplier;
+    public float LoadRadiusMeters => manualRadiusMeters;
 
     private void OnEnable()
     {

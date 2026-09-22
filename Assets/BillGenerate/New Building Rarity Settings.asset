@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fef6469a6da153458895f9d5d857245, type: 3}
+  m_Name: New Building Rarity Settings
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingRaritySettings
+  phases:
+  - phaseName: "\u5E8F\u76E4"
+    startDistance: 200
+    largeEntries:
+    - prefab: {fileID: 919132149155446097, guid: 804e7267160615346b60c45c455e9864, type: 3}
+      weight: 0
+    mediumEntries:
+    - prefab: {fileID: 919132149155446097, guid: 19e2d03cc48a56f49afe667aca01e22c, type: 3}
+      weight: 0
+    smallEntries:
+    - prefab: {fileID: 919132149155446097, guid: 0309837fcfd64de469d08bfc533768af, type: 3}
+      weight: 0
+  - phaseName: "\u4E2D\u76E4"
+    startDistance: 300
+    largeEntries:
+    - prefab: {fileID: 919132149155446097, guid: 804e7267160615346b60c45c455e9864, type: 3}
+      weight: 2
+    - prefab: {fileID: 919132149155446097, guid: 804e7267160615346b60c45c455e9864, type: 3}
+      weight: 3
+    mediumEntries:
+    - prefab: {fileID: 919132149155446097, guid: 772a2af94391bb247ae94e37bae289f8, type: 3}
+      weight: 1
+    - prefab: {fileID: 919132149155446097, guid: 19e2d03cc48a56f49afe667aca01e22c, type: 3}
+      weight: 1
+    smallEntries:
+    - prefab: {fileID: 919132149155446097, guid: 0309837fcfd64de469d08bfc533768af, type: 3}
+      weight: 0
+    - prefab: {fileID: 919132149155446097, guid: 6266d456c551bcf46a0b458e9619450e, type: 3}
+      weight: 0
+  - phaseName: "\u30C6\u30B9\u30C8"
+    startDistance: 0
+    largeEntries: []
+    mediumEntries: []
+    smallEntries: []

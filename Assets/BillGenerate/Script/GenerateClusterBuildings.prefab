@@ -81,7 +81,9 @@ MonoBehaviour:
   majorRoadEdgePrefab: {fileID: 0}
   majorRoadChunkBoundaryPrefab: {fileID: 0}
   majorRoadIntersectionPrefab: {fileID: 0}
+  majorRoadInteriorPrefab2: {fileID: 0}
+  majorRoadEdgePrefab2: {fileID: 0}
   localRoadEdgePrefab: {fileID: 0}
-  raritySettings: {fileID: 0}
+  raritySettings: {fileID: 11400000, guid: fb3081d112a740a4c8554b35fabed74e, type: 2}
   distanceOriginWorldPosition: {x: 0, y: 0, z: 0}
   autoGenerateOnAwake: 0
