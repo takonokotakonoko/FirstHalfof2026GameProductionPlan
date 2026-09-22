@@ -10,35 +10,35 @@ public class EnemySpawnManager : MonoBehaviour
     }
 
     [Header("Phase Settings")]
-    [SerializeField] private EnemyPhaseSettings phaseSettings;
+    [SerializeField] [JpLabel("フェーズ設定")] private EnemyPhaseSettings phaseSettings;
 
     [Header("Spawn Radius")]
     [Tooltip("プレイヤーに近すぎる位置には生成しない距離（未確定・仮値）。")]
-    [SerializeField] private float minSpawnRadius = 15f;
+    [SerializeField] [JpLabel("最小生成半径")] private float minSpawnRadius = 15f;
     [Tooltip("この距離を超えた位置には生成しない（未確定・仮値）。")]
-    [SerializeField] private float maxSpawnRadius = 40f;
+    [SerializeField] [JpLabel("最大生成半径")] private float maxSpawnRadius = 40f;
     [Tooltip("生成する敵のY座標。地面が完全に平坦なため、プレイヤーのY座標を流用せず固定値で指定する。Enemy.prefabの場合、元のシーンで正しく接地していた高さが0.85だった。")]
-    [SerializeField] private float spawnPositionY = 0.85f;
+    [SerializeField] [JpLabel("生成Y座標")] private float spawnPositionY = 0.85f;
 
     [Header("Spawn Validation")]
     [Tooltip("生成候補位置が既存のColliderと重なっていないか判定する球の半径。敵の実際のサイズに近い値にする（未確定・仮値）。")]
-    [SerializeField] private float spawnOverlapCheckRadius = 0.6f;
+    [SerializeField] [JpLabel("重なり判定半径")] private float spawnOverlapCheckRadius = 0.6f;
     [Tooltip("重ならない位置が見つかるまで候補をやり直す最大回数。すべて失敗した場合はその回の生成を見送る。")]
-    [SerializeField] private int maxSpawnPositionAttempts = 10;
+    [SerializeField] [JpLabel("生成位置 試行回数上限")] private int maxSpawnPositionAttempts = 10;
     [Tooltip("デバッグ用。trueにすると、重ならない位置が見つからなかった場合でも最後に試した候補位置へ強制的に生成する（埋まっている場所を目視で確認するため）。本来の（見送る）挙動を確認する場合はfalseにする。")]
-    [SerializeField] private bool debugForceSpawnOnOverlapFailure = true;
+    [SerializeField] [JpLabel("重なり時に強制生成（デバッグ）")] private bool debugForceSpawnOnOverlapFailure = true;
 
     [Header("Despawn")]
     [Tooltip("この距離を超えた生存中の敵は即座に削除する（未確定・仮値）。")]
-    [SerializeField] private float despawnRadius = 60f;
+    [SerializeField] [JpLabel("デスポーン半径")] private float despawnRadius = 60f;
     [Tooltip("この距離を超えた生存中の敵が確率的な間引きの対象になる。despawnRadius未満にすること（未確定・仮値）。")]
-    [SerializeField] private float thinningRadius = 45f;
+    [SerializeField] [JpLabel("間引き半径")] private float thinningRadius = 45f;
     [Tooltip("間引き対象の敵に対し、1回の判定あたりで削除される確率（未確定・仮値）。")]
     [Range(0f, 1f)]
-    [SerializeField] private float thinningChancePerCheck = 0.01f;
+    [SerializeField] [JpLabel("間引き確率（判定あたり）")] private float thinningChancePerCheck = 0.01f;
 
     [Header("Timing")]
-    [SerializeField] private float updateIntervalSeconds = 0.5f;
+    [SerializeField] [JpLabel("更新間隔（秒）")] private float updateIntervalSeconds = 0.5f;
 
     private Transform player;
     private EnemyPool pool;
