@@ -21,6 +21,8 @@ MonoBehaviour:
     enemyTypes:
     - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
       weight: 1
+    - prefab: {fileID: 74671894, guid: 8f27e07d06925ec7d75ac0c55fd3ae21, type: 3}
+      weight: 1
   - phaseName: "\u4E2D\u76E4"
     startTimeSeconds: 180
     spawnIntervalSeconds: 2
