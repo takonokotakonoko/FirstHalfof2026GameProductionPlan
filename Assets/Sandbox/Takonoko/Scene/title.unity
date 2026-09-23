@@ -572,9 +572,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_FontSize: 46
-    m_FontStyle: 1
+    m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 53
@@ -1174,6 +1174,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1325,6 +1329,10 @@ PrefabInstance:
       propertyPath: m_Text
       value: "\u52B9\u679C\u97F3\u306E\u97F3\u91CF"
       objectReference: {fileID: 0}
+    - target: {fileID: 1645585380318563498, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     - target: {fileID: 2277135634253920607, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
       propertyPath: m_Name
       value: SoundSlider
@@ -1433,9 +1441,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_FontSize: 85
-    m_FontStyle: 1
+    m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 158
@@ -2139,6 +2147,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2207,9 +2219,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_FontSize: 32
-    m_FontStyle: 1
+    m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 81
@@ -2286,7 +2298,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_FontSize: 37
     m_FontStyle: 0
     m_BestFit: 0
@@ -2945,9 +2957,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_FontSize: 46
-    m_FontStyle: 1
+    m_FontStyle: 0
     m_BestFit: 0
     m_MinSize: 10
     m_MaxSize: 53
@@ -3186,6 +3198,10 @@ PrefabInstance:
       propertyPath: m_Text
       value: "\u6226\u95D8\u958B\u59CB"
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3423,6 +3439,10 @@ PrefabInstance:
       propertyPath: m_AnchorMin.x
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1645585380318563498, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     - target: {fileID: 2277135634253920607, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
       propertyPath: m_Name
       value: MusicSlider
@@ -3600,6 +3620,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: ff67af1c028a248439e7d5f9009df338, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
