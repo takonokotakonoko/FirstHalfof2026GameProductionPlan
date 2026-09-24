@@ -159,6 +159,14 @@ public class GenerateClusterBuildings : MonoBehaviour
     // 全チャンク共通の値を使うことで、どのチャンクから計算しても同じ格子になるようにする。
     private int latticeSeed;
 
+    // このチャンク専用の乱数。生成はコルーチンで複数フレームに分かれ、ChunkManagerは複数チャンクを同時に
+    // 生成するため、共有のUnityEngine.Randomを使うとyieldの間に別チャンクや敵システムの乱数消費が割り込み、
+    // 同じシードでも結果が変わってしまう。インスタンスごとに持つことで、生成順・タイミングに依存しない
+    // 決定論的な生成にする（破壊状態の復元が「再生成しても同じ建物に同じIDが振られる」ことに依存しているため）。
+    // 構造体のUnity.Mathematics.Randomではなく参照型のSystem.Randomを使うのは、再帰関数で共有しても
+    // 値コピーで同じ乱数列が繰り返される罠が無いため。詳細は基本設計.md参照。
+    private System.Random rng;
+
     private void Reset()
     {
         AutoConfigureCellSizeFromPrefab();
@@ -235,6 +243,9 @@ public class GenerateClusterBuildings : MonoBehaviour
 
     private IEnumerator GenerateLandRoutine(System.Action onComplete)
     {
+        // randomSeedが0のときは従来通り「固定しない」（毎回ランダム）。
+        rng = randomSeed != 0 ? new System.Random(randomSeed) : new System.Random();
+
         landMap = new LandType[gridWidth, gridHeight];
         buildingMap = new int[gridHeight, gridWidth];
         roadClassMap = new RoadClass[gridWidth, gridHeight];
@@ -449,13 +460,21 @@ public class GenerateClusterBuildings : MonoBehaviour
             $"  y={gridHeight / 2,-4}: {DumpScanline(gridHeight / 2)}");
     }
 
+    // UnityEngine.Random.Range(int, int)と同じ意味（maxExclusiveは含まない）。System.Random.Nextは
+    // min > max で例外を投げるが、Unityは投げないため、max ≤ min のときはminを返して挙動を揃える。
+    private int RandomRange(int minInclusive, int maxExclusive)
+    {
+        return maxExclusive <= minInclusive ? minInclusive : rng.Next(minInclusive, maxExclusive);
+    }
+
+    // UnityEngine.Random.valueの代わり。範囲は[0, 1)（Unityは[0, 1]）だが、「確率未満か」の比較にしか使わないため影響はない。
+    private float RandomValue()
+    {
+        return (float)rng.NextDouble();
+    }
+
     private void GenerateMajorRoads()
     {
-        if (randomSeed != 0)
-        {
-            Random.InitState(randomSeed);
-        }
-
         if (generateOuterBoundaryRoads)
         {
             PaintOuterBoundaryRoads();
@@ -736,7 +755,7 @@ public class GenerateClusterBuildings : MonoBehaviour
             // 片方の辺だけがmaxIntervalを超えている場合は、その辺を優先的に割る。
             splitVertical = mustSplitX;
         }
-        else if (!mustSplitX && !mustSplitY && Random.value < recursiveSplitStopChance)
+        else if (!mustSplitX && !mustSplitY && RandomValue() < recursiveSplitStopChance)
         {
             // まだ分割可能でも、一定確率で打ち切って大きめの街区として確定する。
             return;
@@ -744,7 +763,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         else if (canSplitX && canSplitY)
         {
             // 長辺側を優先的に割る。ほぼ正方形の場合は五分五分でランダムに決める。
-            splitVertical = width != height ? width > height : Random.value < 0.5f;
+            splitVertical = width != height ? width > height : RandomValue() < 0.5f;
         }
         else
         {
@@ -753,14 +772,14 @@ public class GenerateClusterBuildings : MonoBehaviour
 
         if (splitVertical)
         {
-            int splitX = Random.Range(x1 + majorRoadMinInterval, x2 - majorRoadMinInterval - majorRoadWidth + 1);
+            int splitX = RandomRange(x1 + majorRoadMinInterval, x2 - majorRoadMinInterval - majorRoadWidth + 1);
             PaintRoadStrip(true, splitX, majorRoadWidth, y1, y2);
             SplitBlockRecursive(x1, y1, splitX, y2);
             SplitBlockRecursive(splitX + majorRoadWidth, y1, x2, y2);
         }
         else
         {
-            int splitY = Random.Range(y1 + majorRoadMinInterval, y2 - majorRoadMinInterval - majorRoadWidth + 1);
+            int splitY = RandomRange(y1 + majorRoadMinInterval, y2 - majorRoadMinInterval - majorRoadWidth + 1);
             PaintRoadStrip(false, splitY, majorRoadWidth, x1, x2);
             SplitBlockRecursive(x1, y1, x2, splitY);
             SplitBlockRecursive(x1, splitY + majorRoadWidth, x2, y2);
@@ -796,11 +815,11 @@ public class GenerateClusterBuildings : MonoBehaviour
         List<int> positions = new List<int>();
         positions.Add(start);
 
-        int currentPos = start + Random.Range(minInterval, maxInterval + 1);
+        int currentPos = start + RandomRange(minInterval, maxInterval + 1);
         while (currentPos < end)
         {
             positions.Add(currentPos);
-            currentPos += Random.Range(minInterval, maxInterval + 1);
+            currentPos += RandomRange(minInterval, maxInterval + 1);
         }
 
         return positions;
@@ -1119,7 +1138,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         {
             splitVertical = mustSplitX;
         }
-        else if (!mustSplitX && !mustSplitY && Random.value < lotSplitStopChance)
+        else if (!mustSplitX && !mustSplitY && RandomValue() < lotSplitStopChance)
         {
             // まだ分割可能でも、一定確率で打ち切って1つの敷地として確定する。
             PaintMapRectLot(lotId, x1, y1, x2, y2);
@@ -1128,7 +1147,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         }
         else if (canSplitX && canSplitY)
         {
-            splitVertical = width != height ? width > height : Random.value < 0.5f;
+            splitVertical = width != height ? width > height : RandomValue() < 0.5f;
         }
         else
         {
@@ -1137,13 +1156,13 @@ public class GenerateClusterBuildings : MonoBehaviour
 
         if (splitVertical)
         {
-            int splitX = Random.Range(x1 + minSizeXMinSide, x2 - minSizeXMaxSide - buildingPaddingWidth + 1);
+            int splitX = RandomRange(x1 + minSizeXMinSide, x2 - minSizeXMaxSide - buildingPaddingWidth + 1);
             SplitLotRecursive(x1, y1, splitX, y2, touchesXMin, false, touchesYMin, touchesYMax, ref lotId);
             SplitLotRecursive(splitX + buildingPaddingWidth, y1, x2, y2, false, touchesXMax, touchesYMin, touchesYMax, ref lotId);
         }
         else
         {
-            int splitY = Random.Range(y1 + minSizeYMinSide, y2 - minSizeYMaxSide - buildingPaddingWidth + 1);
+            int splitY = RandomRange(y1 + minSizeYMinSide, y2 - minSizeYMaxSide - buildingPaddingWidth + 1);
             SplitLotRecursive(x1, y1, x2, splitY, touchesXMin, touchesXMax, touchesYMin, false, ref lotId);
             SplitLotRecursive(x1, splitY + buildingPaddingWidth, x2, y2, touchesXMin, touchesXMax, false, touchesYMax, ref lotId);
         }
@@ -2654,8 +2673,8 @@ public class GenerateClusterBuildings : MonoBehaviour
         int placedSinceYield = 0;
         // 敷地1個につき複数棟の建物が置かれるようになったため、破壊トラッキング（destroyedLotIds）は
         // SplitLotRecursiveの敷地IDではなく、ここで振る建物1棟ごとの一意なIDを使う。
-        // Randomはチャンク生成のシードで固定されており、lotBoundsの列挙順・敷地内の充填順も
-        // 決定論的なため、再生成時も同じ建物に同じIDが振られる。
+        // 乱数はこのチャンク専用のrng（チャンク生成のシードで固定、他チャンク・他システムの影響を受けない）で、
+        // lotBoundsの列挙順・敷地内の充填順も決定論的なため、再生成時も同じ建物に同じIDが振られる。
         int nextBuildingId = 1;
         foreach (KeyValuePair<int, LotBounds> kvp in lotBounds)
         {
@@ -2667,12 +2686,6 @@ public class GenerateClusterBuildings : MonoBehaviour
             foreach (BuildingPlacement placement in placements)
             {
                 int buildingId = nextBuildingId++;
-
-                // 破壊済みの建物はチャンク再生成時に復活させない。
-                if (destroyedLotIds.Contains(buildingId))
-                {
-                    continue;
-                }
 
                 Vector3 position = transform.position + new Vector3(
                     (bounds.minX + placement.LocalX + placement.SizeCells / 2.0f) * cellWidth,
@@ -2686,15 +2699,24 @@ public class GenerateClusterBuildings : MonoBehaviour
                 if (raritySettings != null)
                 {
                     BuildingRaritySettings.Phase phase = raritySettings.GetActivePhase(distance);
-                    prefabToUse = raritySettings.Pick(phase, placement.SizeCells, billPrefab);
+                    prefabToUse = raritySettings.Pick(phase, placement.SizeCells, billPrefab, rng);
+                }
+
+                // 建物の正面の向きをばらばらにするため、0/90/180/270度からランダムに回転させる。
+                // 大中小はすべて正方形footprintのため、旧実装にあった回転時のwidth/height入れ替えは不要。
+                int rotationSteps = RandomRange(0, 4);
+
+                // 破壊済みの建物はチャンク再生成時に復活させない。
+                // レア度と回転の抽選は、この判定より前に必ず行う。破壊済みの建物を抽選ごと飛ばすと
+                // 乱数を使う回数が減り、以降の建物のモデルと向きが壊す前とずれてしまうため（基本設計.md参照）。
+                if (destroyedLotIds.Contains(buildingId))
+                {
+                    continue;
                 }
 
                 if (prefabToUse != null)
                 {
-                    // 建物の正面の向きをばらばらにするため、0/90/180/270度からランダムに回転させる。
-                    // 大中小はすべて正方形footprintのため、旧実装にあった回転時のwidth/height入れ替えは不要。
                     // プレファブは底面中心ピボット・実寸（伸縮なし）で作られている前提のため、スケールは触らない。
-                    int rotationSteps = Random.Range(0, 4);
                     Quaternion rotation = Quaternion.Euler(0f, rotationSteps * 90f, 0f);
 
                     GameObject building = Instantiate(prefabToUse, position, rotation, buildingsParent.transform);
@@ -2785,6 +2807,9 @@ public class GenerateClusterBuildings : MonoBehaviour
             CollectMajorRoadRingCandidates(centerX, centerY, radius, candidates);
             if (candidates.Count > 0)
             {
+                // 生成後にPlayerSpawnerから同期的に呼ばれるスポーン位置の選択で、地形生成ではないため、
+                // チャンク専用のrngではなく共有のUnityEngine.Randomを使う（rngを進めても生成結果には影響しないが、
+                // 生成とは無関係な乱数消費を混ぜない方針）。
                 Vector2Int chosen = candidates[Random.Range(0, candidates.Count)];
                 resultWorldPosition = transform.position + new Vector3((chosen.x + 0.5f) * cellWidth, 0f, (chosen.y + 0.5f) * cellHeight);
                 return true;
