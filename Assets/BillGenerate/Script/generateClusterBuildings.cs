@@ -50,7 +50,7 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] [Range(0f, 1f)] [JpLabel("再帰分割 打ち切り確率")] private float recursiveSplitStopChance = 0.15f;
 
     [Header("Global Lattice Variance")]
-    [Tooltip("GlobalLatticeモード専用。ワールド座標のノイズで格子の粗密を変化させる強さ。0だとジッター幅が一定になる。")]
+    [Tooltip("GlobalLatticeモード専用。ワールド座標のノイズで格子の粗密を変化させる強さ。ノイズが低い場所ほどジッター幅を縮めて規則的にする。ジッター幅の上限（幹線道路の間隔を最小〜最大間隔に収める値）は超えない。0だとジッター幅が常に上限で一定になる。")]
     [SerializeField] [Range(0f, 1f)] [JpLabel("格子ジッター強度")] private float latticeVarianceStrength = 0.5f;
     [Tooltip("GlobalLatticeモード専用。ノイズが低いセルの道路を間引いて隣と合体させ、大きめの街区を作る最大確率。")]
     [SerializeField] [Range(0f, 0.9f)] [JpLabel("街区合体確率")] private float latticeBlockMergeChance = 0.25f;
@@ -93,10 +93,10 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] [JpLabel("横断歩道プレファブ（チャンク境界・半幅版）")] private GameObject boundaryCrosswalkBarPrefab;
 
     [Header("Road Tile Variants (Major)")]
-    [Tooltip("未設定ならroadPrefabにフォールバックする。GlobalLatticeモード限定で、同じ車線が2マス連続した箇所にまとめて配置する実寸（伸縮なし）の6mタイル。")]
-    [SerializeField] [JpLabel("幹線道路 内側プレファブ（2マス版）")] private GameObject majorRoadInteriorPrefab2;
-    [Tooltip("未設定ならroadPrefabにフォールバックする。GlobalLatticeモード限定で、同じ車線が2マス連続した箇所にまとめて配置する実寸（伸縮なし）の6mタイル。")]
-    [SerializeField] [JpLabel("幹線道路 縁プレファブ（2マス版）")] private GameObject majorRoadEdgePrefab2;
+    [Tooltip("未設定ならroadPrefabを1マスずつ敷く方式にフォールバックする。GlobalLatticeモード限定。道路の進行方向1マス×横断方向2マス（3m×6m）の実寸（伸縮なし）タイル。内部の幹線道路には近側・遠側（180度回転）の2枚、チャンク境界帯には1枚を置く。ローカル−X端が歩道側、+X端が道路中央側、+Zが進行方向。")]
+    [SerializeField] [JpLabel("幹線道路 半幅プレファブ（3m×6m）")] private GameObject majorRoadHalfPrefab;
+    [Tooltip("未設定ならroadPrefabを1マスずつ敷く方式にフォールバックする。GlobalLatticeモード限定。交差点を2×2マス（6m×6m）ずつ覆う実寸（伸縮なし）タイル。十字路は4枚、チャンク境界上の十字路は各チャンク2枚、チャンクの四隅は各チャンク1枚で構成される。ローカル(−X,−Z)の角が交差点の外角（歩道の角）。")]
+    [SerializeField] [JpLabel("幹線道路 交差点四半分プレファブ（6m×6m）")] private GameObject majorRoadIntersectionQuarterPrefab;
 
     [Header("Road Tile Variants (Local)")]
     [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
@@ -293,6 +293,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         UnityEngine.Profiling.Profiler.BeginSample("GenerateCrosswalksAndTrafficLights");
         GenerateCrosswalksAndTrafficLights();
         UnityEngine.Profiling.Profiler.EndSample();
+        WarnIfCrosswalkOverlapsMajorIntersection();
         yield return null;
 
         if (logTileClassificationCounts)
@@ -389,10 +390,10 @@ public class GenerateClusterBuildings : MonoBehaviour
         crosswalkBarSkippedByLength = 0;
         crosswalkBarSkippedByMesh = 0;
         crosswalkBarMeshFailureLogged = false;
-        ComputeCrosswalkBars(out HashSet<Vector2Int> barCells, out List<CrosswalkBar> bars);
+        ComputeCrosswalkBars(out HashSet<Vector2Int> barCells, out List<MergedTile> bars);
         int fullBars = 0;
         int halfBars = 0;
-        foreach (CrosswalkBar bar in bars)
+        foreach (MergedTile bar in bars)
         {
             if (bar.Prefab == crosswalkBarPrefab)
             {
@@ -404,12 +405,42 @@ public class GenerateClusterBuildings : MonoBehaviour
             }
         }
 
+        // 幹線道路が半幅／四半分タイルにまとまったか、1マス版（roadPrefab）へフォールバックしたかを数字で確認する。
+        // 横断歩道セルは横断歩道側が描くため、フォールバックの数には含めない。
+        ComputeMajorRoadTiles(out HashSet<Vector2Int> majorTileCells, out List<MergedTile> majorTiles);
+        int halfTiles = 0;
+        int quarterTiles = 0;
+        foreach (MergedTile tile in majorTiles)
+        {
+            if (tile.Prefab == majorRoadIntersectionQuarterPrefab)
+            {
+                quarterTiles++;
+            }
+            else
+            {
+                halfTiles++;
+            }
+        }
+
+        int majorFallbackCells = 0;
+        for (int y = 0; y < gridHeight; y++)
+        {
+            for (int x = 0; x < gridWidth; x++)
+            {
+                if (roadClassMap[x, y] == RoadClass.Major && !crosswalkMap[x, y] && !majorTileCells.Contains(new Vector2Int(x, y)))
+                {
+                    majorFallbackCells++;
+                }
+            }
+        }
+
         Debug.Log(
             $"[タイル分類] Chunk({chunkCoord.x}, {chunkCoord.y}) grid={gridWidth}x{gridHeight} majorRoadWidth={majorRoadWidth} 境界帯幅={boundaryWidth}\n" +
             $"  横断歩道バー 全幅={fullBars}本 / 半幅={halfBars}本 / バー化されたセル={barCells.Count}\n" +
             $"  バー化されなかった原因 長さ不一致={crosswalkBarSkippedByLength} / メッシュ無し={crosswalkBarSkippedByMesh}\n" +
             $"  crosswalkBarPrefab={(crosswalkBarPrefab != null ? crosswalkBarPrefab.name : "null")} " +
             $"boundaryCrosswalkBarPrefab={(boundaryCrosswalkBarPrefab != null ? boundaryCrosswalkBarPrefab.name : "null")}\n" +
+            $"  幹線タイル 半幅={halfTiles}枚 / 四半分={quarterTiles}枚 / フォールバック幹線セル={majorFallbackCells}\n" +
             $"  Interior(紫)={interior} / EdgeToSidewalk(緑)={edgeToSidewalk} / EdgeToChunkBoundary(青)={edgeToChunkBoundary} / Intersection(赤)={intersection}\n" +
             $"  生活道路={localRoad}\n" +
             $"  横断歩道 境界帯={crosswalkOnBoundary} / それ以外={crosswalkElsewhere}\n" +
@@ -517,7 +548,14 @@ public class GenerateClusterBuildings : MonoBehaviour
     }
 
     private int MacroCellSize => Mathf.Max(majorRoadWidth + 1, (majorRoadMinInterval + majorRoadMaxInterval) / 2);
-    private int MacroCellJitterRange => Mathf.Max(0, (majorRoadMaxInterval - majorRoadMinInterval) / 2);
+
+    // 隣り合う格子線の間隔は「MacroCellSize + 次の線のジッター − 今の線のジッター」で決まり、
+    // ジッターは線ごとに独立に決まる。そのため1本あたりのジッター幅を (MacroCellSize − 最小間隔) / 2 に
+    // 抑えれば、隣の線を参照せずに間隔が必ず [最小間隔, 最大間隔] に収まる（帯同士の重なり・接触を防ぐ）。
+    // 以前は (max − min) / 2 をそのまま1本ずつに与えていたため、間隔のばらつきが想定の2倍になり、
+    // ノイズでさらに1.5倍されると間隔が負（帯の重なり）になり得た。詳細は基本設計.md参照。
+    // majorRoadWidth + 1 との比較は、最小間隔を道路幅以下に設定された場合でも重ならないようにする保険。
+    private int MacroCellJitterRange => Mathf.Max(0, (MacroCellSize - Mathf.Max(majorRoadMinInterval, majorRoadWidth + 1)) / 2);
 
     private void PaintLatticeInteriorAxis(bool isVertical, int boundaryWidth)
     {
@@ -620,11 +658,12 @@ public class GenerateClusterBuildings : MonoBehaviour
             return basePosition;
         }
 
-        // ノイズが高いセルほどジッター幅を広げ、低いセルほど規則正しくする。
-        // latticeVarianceStrength=0なら常にbaseJitterRangeのまま（従来通り）。
+        // ノイズが低いセルほどジッター幅を狭めて規則正しくする。baseJitterRangeは重なりを防ぐ上限なので
+        // 超えてはならず、ノイズは「上限以下でどれだけ縮めるか」にだけ使う。
+        // latticeVarianceStrength=0なら常にbaseJitterRangeのまま。
         float noise = SampleLatticeNoise(isVertical, cellIndex);
-        float scale = Mathf.Lerp(1f - latticeVarianceStrength, 1f + latticeVarianceStrength, noise);
-        int jitterRange = Mathf.Clamp(Mathf.RoundToInt(baseJitterRange * scale), 0, baseJitterRange * 2);
+        float scale = Mathf.Lerp(1f - latticeVarianceStrength, 1f, noise);
+        int jitterRange = Mathf.Clamp(Mathf.RoundToInt(baseJitterRange * scale), 0, baseJitterRange);
 
         if (jitterRange <= 0)
         {
@@ -1830,15 +1869,19 @@ public class GenerateClusterBuildings : MonoBehaviour
         Dictionary<GameObject, List<CombineInstance>> roadCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
         List<CombineInstance> crosswalkCombine = new List<CombineInstance>();
 
-        // GlobalLatticeモード限定：同じ車線が2マス連続しているMajor道路セルを実寸（伸縮なし）の
-        // 6mタイルへまとめる。mergedSecondCellsは2マス目（何も配置しない）、mergedFirstCellPrefabは
-        // 1マス目の位置に配置する2マス版プレファブ。
-        ComputeMajorRoadMergedPairs(out HashSet<Vector2Int> mergedSecondCells, out Dictionary<Vector2Int, GameObject> mergedFirstCellPrefab);
+        // GlobalLatticeモード限定：幹線道路を実寸（伸縮なし）の半幅タイル・交差点四半分タイルで組む。
+        // まとめられたセルは1マス版の対象から外す（consumedCellsに入らなかった幹線セルはroadPrefabで1マスずつ敷く）。
+        ComputeMajorRoadTiles(out HashSet<Vector2Int> majorRoadTileCells, out List<MergedTile> majorRoadTiles);
+        foreach (MergedTile roadTile in majorRoadTiles)
+        {
+            Matrix4x4 roadTileMatrix = Matrix4x4.TRS(roadTile.LocalPosition, roadTile.Rotation, roadTile.Prefab.transform.localScale);
+            AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadTile.Prefab), roadTile.Prefab, roadTileMatrix);
+        }
 
         // 横断歩道を帯の全幅でまたぐ1枚のバーにまとめる。まとめられたセルは1マス版の対象から外す。
-        ComputeCrosswalkBars(out HashSet<Vector2Int> crosswalkBarCells, out List<CrosswalkBar> crosswalkBars);
+        ComputeCrosswalkBars(out HashSet<Vector2Int> crosswalkBarCells, out List<MergedTile> crosswalkBars);
         Dictionary<GameObject, List<CombineInstance>> crosswalkBarCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
-        foreach (CrosswalkBar bar in crosswalkBars)
+        foreach (MergedTile bar in crosswalkBars)
         {
             // プレファブ自身のTransformスケールを尊重する。納品仕様上は実寸・スケール=1が前提のため
             // 通常は無変換（Vector3.one）と同じ結果になるが、検証用にUnity上で手動作成したプレファブが
@@ -1858,9 +1901,9 @@ public class GenerateClusterBuildings : MonoBehaviour
                 }
 
                 Vector2Int cellCoord = new Vector2Int(x, y);
-                if (mergedSecondCells.Contains(cellCoord))
+                if (majorRoadTileCells.Contains(cellCoord))
                 {
-                    // 2マス版としてまとめて配置済みなので、この1マス分は何も置かない。
+                    // 半幅／四半分タイルとしてまとめて配置済みなので、この1マス分は何も置かない。
                     continue;
                 }
 
@@ -1872,18 +1915,6 @@ public class GenerateClusterBuildings : MonoBehaviour
                     GameObject tile = Instantiate(trafficLightsPrefab, transform.position + localPosition, Quaternion.identity, groundParent.transform);
                     tile.name = $"TrafficLight_{x}_{y}";
                     tile.transform.localScale = scale;
-                    continue;
-                }
-
-                if (mergedFirstCellPrefab.TryGetValue(cellCoord, out GameObject mergedPrefab))
-                {
-                    bool isVertical = roadStripIsVertical[x, y];
-                    Vector3 mergedLocalPosition = isVertical
-                        ? new Vector3((x + 0.5f) * cellWidth, 0f, (y + 1f) * cellHeight)
-                        : new Vector3((x + 1f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
-                    Quaternion mergedRotation = GetMajorRoadTileRotation(x, y, ClassifyMajorRoadTile(x, y));
-                    Matrix4x4 mergedMatrix = Matrix4x4.TRS(mergedLocalPosition, mergedRotation, Vector3.one);
-                    AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, mergedPrefab), mergedPrefab, mergedMatrix);
                     continue;
                 }
 
@@ -1948,74 +1979,286 @@ public class GenerateClusterBuildings : MonoBehaviour
         yield return PlaceBuildingsRoutine();
     }
 
-    // GlobalLatticeモード限定：Major道路のInterior/EdgeToSidewalkセルのうち、ストリップの長さ方向
-    // （roadStripIsVerticalが示す軸）に同じ分類・同じ車線（roadOffsetFromNearEdge）が2マス連続している
-    // 箇所を検出し、実寸（伸縮なし）の2マス版プレファブでまとめて配置できるようにする。
-    // Interior/Edgeは常に別々の専用プレファブフィールドを参照するため、内側と外側を取り違えることはない。
-    // 2マス版プレファブが未設定の場合はそもそも結合対象にしない（＝1マスずつroadPrefabで敷く）。
-    private void ComputeMajorRoadMergedPairs(out HashSet<Vector2Int> secondCells, out Dictionary<Vector2Int, GameObject> firstCellPrefab)
+    // 実寸（伸縮なし）で1枚配置するタイル。横断歩道バーと、幹線道路の半幅／交差点四半分タイルで共用する。
+    private struct MergedTile
     {
-        secondCells = new HashSet<Vector2Int>();
-        firstCellPrefab = new Dictionary<Vector2Int, GameObject>();
+        public GameObject Prefab;
+        public Vector3 LocalPosition;
+        public Quaternion Rotation;
+    }
+
+    // GlobalLatticeモード限定：幹線道路を実寸タイルで組む。
+    // - 交差点（isMajorIntersectionCell＝2軸の帯が重なったセル）は2×2マスの四半分タイルで覆う。
+    //   十字路は4枚、チャンク境界上の十字路は4×2に割れるので各チャンク2枚、チャンクの四隅は各チャンク1枚になり、
+    //   どの場合も隣チャンクを参照せずに自チャンク内で完結する。
+    // - 直線は帯を横切る方向に2マス（3m×6m）の半幅タイルで覆う。内部の幅4の帯は近側・遠側の2枚、
+    //   チャンク境界帯（各チャンク幅2）は1枚。
+    // 横断歩道セルは横断歩道側（バーまたは1マス版）が描くため対象外。条件を満たさないセルは
+    // consumedCellsに入らず、従来通りroadPrefabで1マスずつ敷かれる。
+    // RecursiveSubdivisionモードはT字路が「帯の重なり」にならず交差点を検出できないため対象外にしている。
+    private void ComputeMajorRoadTiles(out HashSet<Vector2Int> consumedCells, out List<MergedTile> tiles)
+    {
+        consumedCells = new HashSet<Vector2Int>();
+        tiles = new List<MergedTile>();
 
         if (roadGenerationMode != RoadGenerationMode.GlobalLattice)
         {
             return;
         }
 
-        bool[,] consumed = new bool[gridWidth, gridHeight];
+        // 描画できないプレファブでセルを消費すると、1マス版も描かれず穴が空く。横断歩道バーと同じく先に弾く。
+        if (HasUsableMesh(majorRoadIntersectionQuarterPrefab))
+        {
+            CollectIntersectionQuarterTiles(majorRoadIntersectionQuarterPrefab, consumedCells, tiles);
+        }
+
+        if (HasUsableMesh(majorRoadHalfPrefab))
+        {
+            CollectHalfWidthTiles(majorRoadHalfPrefab, consumedCells, tiles);
+        }
+    }
+
+    private void CollectIntersectionQuarterTiles(GameObject prefab, HashSet<Vector2Int> consumedCells, List<MergedTile> tiles)
+    {
+        for (int y = 0; y < gridHeight; y++)
+        {
+            for (int x = 0; x < gridWidth; x++)
+            {
+                if (!IsQuarterTileCandidate(x, y, consumedCells) || !IsIntersectionRegionAlignedStart(x, y))
+                {
+                    continue;
+                }
+
+                if (!IsQuarterTileCandidate(x + 1, y, consumedCells) ||
+                    !IsQuarterTileCandidate(x, y + 1, consumedCells) ||
+                    !IsQuarterTileCandidate(x + 1, y + 1, consumedCells))
+                {
+                    continue;
+                }
+
+                if (!TryGetQuarterSidewalkCorner(x, y, out Vector2Int corner))
+                {
+                    continue;
+                }
+
+                tiles.Add(new MergedTile
+                {
+                    Prefab = prefab,
+                    LocalPosition = new Vector3((x + 1f) * cellWidth, 0f, (y + 1f) * cellHeight),
+                    Rotation = Quaternion.Euler(0f, GetQuarterTileYaw(corner), 0f),
+                });
+
+                consumedCells.Add(new Vector2Int(x, y));
+                consumedCells.Add(new Vector2Int(x + 1, y));
+                consumedCells.Add(new Vector2Int(x, y + 1));
+                consumedCells.Add(new Vector2Int(x + 1, y + 1));
+            }
+        }
+    }
+
+    private bool IsQuarterTileCandidate(int x, int y, HashSet<Vector2Int> consumedCells)
+    {
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            return false;
+        }
+
+        return isMajorIntersectionCell[x, y] && !crosswalkMap[x, y] && !consumedCells.Contains(new Vector2Int(x, y));
+    }
+
+    // 交差点領域（4×4／4×2／2×4／2×2）を2×2に区切る際、区切りの位置が領域の端から偶数マス目になるようにする。
+    // ある2×2ブロックが四半分の条件を満たさず飛ばされた場合でも、1マスずれた位置で誤ったブロックを作らないための保険。
+    private bool IsIntersectionRegionAlignedStart(int x, int y)
+    {
+        int runLeft = 0;
+        while (x - runLeft - 1 >= 0 && isMajorIntersectionCell[x - runLeft - 1, y])
+        {
+            runLeft++;
+        }
+
+        int runDown = 0;
+        while (y - runDown - 1 >= 0 && isMajorIntersectionCell[x, y - runDown - 1])
+        {
+            runDown++;
+        }
+
+        return runLeft % 2 == 0 && runDown % 2 == 0;
+    }
+
+    // 2×2ブロックの4つの対角外側セルのうち、幹線道路でないもの（＝街区の角の敷地）がちょうど1つあれば、
+    // その方向がこの四半分の「歩道の角」。十字路の四半分なら残り3方向は腕の道路や隣の四半分になる。
+    // グリッド外は継ぎ目の向こうの道路とみなす（境界上の十字路・チャンクの四隅でも同じ規則で向きが決まる）。
+    private bool TryGetQuarterSidewalkCorner(int x, int y, out Vector2Int corner)
+    {
+        corner = Vector2Int.zero;
+        int found = 0;
+
+        for (int dx = -1; dx <= 1; dx += 2)
+        {
+            for (int dy = -1; dy <= 1; dy += 2)
+            {
+                int cx = dx < 0 ? x - 1 : x + 2;
+                int cy = dy < 0 ? y - 1 : y + 2;
+
+                if (cx < 0 || cx >= gridWidth || cy < 0 || cy >= gridHeight)
+                {
+                    continue;
+                }
+
+                if (roadClassMap[cx, cy] != RoadClass.Major)
+                {
+                    found++;
+                    corner = new Vector2Int(dx, dy);
+                }
+            }
+        }
+
+        return found == 1;
+    }
+
+    private void CollectHalfWidthTiles(GameObject prefab, HashSet<Vector2Int> consumedCells, List<MergedTile> tiles)
+    {
+        for (int y = 0; y < gridHeight; y++)
+        {
+            for (int x = 0; x < gridWidth; x++)
+            {
+                if (!IsHalfTileCandidate(x, y, consumedCells))
+                {
+                    continue;
+                }
+
+                int offsetNear = roadOffsetFromNearEdge[x, y];
+                int offsetFar = roadOffsetFromFarEdge[x, y];
+                int stripWidth = offsetNear + offsetFar + 1;
+
+                // 半幅タイルの「歩道側セル」だけを起点にする。
+                // 幅2（境界帯）はNear側＝敷地側だけ（Far側はチャンクの継ぎ目＝道路中央側）。
+                // 幅4（内部）は両端。それ以外の幅は半幅タイルで割り切れないので1マス版に任せる。
+                bool isSidewalkSideCell = stripWidth == 2
+                    ? offsetNear == 0
+                    : stripWidth == 4 && (offsetNear == 0 || offsetFar == 0);
+
+                if (!isSidewalkSideCell)
+                {
+                    continue;
+                }
+
+                int partnerOffsetNear = offsetNear == 0 ? 1 : offsetNear - 1;
+                if (!TryFindHalfTilePartner(x, y, partnerOffsetNear, stripWidth, consumedCells, out Vector2Int partner))
+                {
+                    continue;
+                }
+
+                Vector2Int sidewalkDirection = new Vector2Int(x - partner.x, y - partner.y);
+
+                tiles.Add(new MergedTile
+                {
+                    Prefab = prefab,
+                    LocalPosition = new Vector3(((x + partner.x) * 0.5f + 0.5f) * cellWidth, 0f, ((y + partner.y) * 0.5f + 0.5f) * cellHeight),
+                    Rotation = Quaternion.Euler(0f, GetHalfTileYaw(sidewalkDirection), 0f),
+                });
+
+                consumedCells.Add(new Vector2Int(x, y));
+                consumedCells.Add(partner);
+            }
+        }
+    }
+
+    private bool IsHalfTileCandidate(int x, int y, HashSet<Vector2Int> consumedCells)
+    {
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            return false;
+        }
+
+        return roadClassMap[x, y] == RoadClass.Major
+            && roadOffsetFromNearEdge[x, y] >= 0
+            && !isMajorIntersectionCell[x, y]
+            && !crosswalkMap[x, y]
+            && !sidewalkMap[x, y]
+            && !consumedCells.Contains(new Vector2Int(x, y));
+    }
+
+    // 帯を横切る方向の隣2セルから、同じ軸・同じ帯幅で目的のオフセットを持つセルを探す。
+    // 近い端が低い座標側か高い座標側かは帯によって異なる（内部の格子線は低い側、左・下の境界帯は高い側）ため、両方向を調べる。
+    private bool TryFindHalfTilePartner(int x, int y, int partnerOffsetNear, int stripWidth, HashSet<Vector2Int> consumedCells, out Vector2Int partner)
+    {
+        bool isVertical = roadStripIsVertical[x, y];
+        int stepX = isVertical ? 1 : 0;
+        int stepY = isVertical ? 0 : 1;
+
+        for (int sign = -1; sign <= 1; sign += 2)
+        {
+            int px = x + stepX * sign;
+            int py = y + stepY * sign;
+
+            if (!IsHalfTileCandidate(px, py, consumedCells) || roadStripIsVertical[px, py] != isVertical)
+            {
+                continue;
+            }
+
+            if (roadOffsetFromNearEdge[px, py] != partnerOffsetNear ||
+                roadOffsetFromNearEdge[px, py] + roadOffsetFromFarEdge[px, py] + 1 != stripWidth)
+            {
+                continue;
+            }
+
+            partner = new Vector2Int(px, py);
+            return true;
+        }
+
+        partner = Vector2Int.zero;
+        return false;
+    }
+
+    // 回転はオフセットの反転規則ではなく、ワールド上の方向ベクトルから求める。
+    // 既存の「offsetFar==0なら180度」の規則は、横向きの帯では歩道側が幾何的に逆を向く
+    // （対称な横断歩道では見た目に出ないが、L型側溝を持つ非対称タイルでは破綻する）。
+    // UnityのY軸回転θでは、ローカル(a, b)（XZ）がワールド(a·cosθ + b·sinθ, −a·sinθ + b·cosθ)に写る。
+    // 半幅タイルはローカル−X端が歩道側：−x→0°、+z→90°、+x→180°、−z→270°。
+    private static float GetHalfTileYaw(Vector2Int sidewalkDirection)
+    {
+        if (sidewalkDirection.x < 0) return 0f;
+        if (sidewalkDirection.y > 0) return 90f;
+        if (sidewalkDirection.x > 0) return 180f;
+        return 270f;
+    }
+
+    // 四半分タイルはローカル(−X, −Z)の角が歩道の角：南西→0°、北西→90°、北東→180°、南東→270°。
+    private static float GetQuarterTileYaw(Vector2Int corner)
+    {
+        if (corner.x < 0) return corner.y < 0 ? 0f : 90f;
+        return corner.y > 0 ? 180f : 270f;
+    }
+
+    // 横断歩道は交差点（4×4）の外周の1行・1列にだけ生成される前提で、四半分タイルはこれに依存している
+    // （横断歩道セルは四半分の対象から外すため、交差点の中に横断歩道があると2×2が組めず1マス版に落ちる）。
+    // 前提が崩れた場合にすぐ気付けるよう、重なりがあれば1チャンクにつき1回だけ警告する。
+    private void WarnIfCrosswalkOverlapsMajorIntersection()
+    {
+        int count = 0;
+        Vector2Int first = Vector2Int.zero;
 
         for (int y = 0; y < gridHeight; y++)
         {
             for (int x = 0; x < gridWidth; x++)
             {
-                if (consumed[x, y] || roadClassMap[x, y] != RoadClass.Major)
+                if (crosswalkMap[x, y] && isMajorIntersectionCell[x, y])
                 {
-                    continue;
+                    if (count == 0)
+                    {
+                        first = new Vector2Int(x, y);
+                    }
+
+                    count++;
                 }
-
-                RoadTileKind kind = ClassifyMajorRoadTile(x, y);
-                if (kind != RoadTileKind.Interior && kind != RoadTileKind.EdgeToSidewalk)
-                {
-                    continue;
-                }
-
-                GameObject prefab2 = kind == RoadTileKind.Interior ? majorRoadInteriorPrefab2 : majorRoadEdgePrefab2;
-                if (prefab2 == null)
-                {
-                    continue;
-                }
-
-                bool isVertical = roadStripIsVertical[x, y];
-                int nx = isVertical ? x : x + 1;
-                int ny = isVertical ? y + 1 : y;
-
-                if (nx >= gridWidth || ny >= gridHeight || consumed[nx, ny] || roadClassMap[nx, ny] != RoadClass.Major)
-                {
-                    continue;
-                }
-
-                if (ClassifyMajorRoadTile(nx, ny) != kind || roadOffsetFromNearEdge[nx, ny] != roadOffsetFromNearEdge[x, y])
-                {
-                    continue;
-                }
-
-                consumed[x, y] = true;
-                consumed[nx, ny] = true;
-                secondCells.Add(new Vector2Int(nx, ny));
-                firstCellPrefab[new Vector2Int(x, y)] = prefab2;
             }
         }
-    }
 
-    // セルの分類（RoadTileKind）から、実際に使う道路タイルのプレファブと回転を決める。
-    // 対応するバリエーションが未設定（null）の場合は既存のroadPrefabにフォールバックするため、
-    // テクスチャ・プレファブが未整備のままでも従来通りの見た目で動作する。
-    private struct CrosswalkBar
-    {
-        public GameObject Prefab;
-        public Vector3 LocalPosition;
-        public Quaternion Rotation;
+        if (count > 0)
+        {
+            Debug.LogWarning($"[幹線タイル] Chunk({chunkCoord.x}, {chunkCoord.y}) 横断歩道が交差点セルに{count}マス重なっています（最初の位置 {first}）。横断歩道は交差点の外周にだけ生成される前提が崩れています。");
+        }
     }
 
     // バーとして1本にまとめてよい横断歩道セルかどうか。
@@ -2038,7 +2281,7 @@ public class GenerateClusterBuildings : MonoBehaviour
     }
 
     // 横断歩道は道路帯を横切る1本の「バー」として生成されるため、1マスずつ敷くのではなく
-    // 帯の全幅を1枚のプレファブでまたげる。ComputeMajorRoadMergedPairs（幹線道路の2マス合体）と同じ発想。
+    // 帯の全幅を1枚のプレファブでまたげる。ComputeMajorRoadTiles（幹線道路の半幅／四半分タイル）と同じ発想。
     // バーの長さが期待値と一致し、かつプレファブが設定されている場合だけ合体し、
     // それ以外は従来通り1マスずつ敷く（consumedCellsに入らなかったセルが1マス版として処理される）。
     // 診断用：バー化されなかった原因を「長さが期待値と違った」か「プレファブにメッシュが無かった」かで
@@ -2047,10 +2290,10 @@ public class GenerateClusterBuildings : MonoBehaviour
     private int crosswalkBarSkippedByMesh;
     private bool crosswalkBarMeshFailureLogged;
 
-    private void ComputeCrosswalkBars(out HashSet<Vector2Int> consumedCells, out List<CrosswalkBar> bars)
+    private void ComputeCrosswalkBars(out HashSet<Vector2Int> consumedCells, out List<MergedTile> bars)
     {
         consumedCells = new HashSet<Vector2Int>();
-        bars = new List<CrosswalkBar>();
+        bars = new List<MergedTile>();
 
         if (crosswalkBarPrefab == null && boundaryCrosswalkBarPrefab == null)
         {
@@ -2139,7 +2382,7 @@ public class GenerateClusterBuildings : MonoBehaviour
                     yaw += 180f;
                 }
 
-                bars.Add(new CrosswalkBar
+                bars.Add(new MergedTile
                 {
                     Prefab = prefab,
                     LocalPosition = localPosition,
