@@ -27,22 +27,24 @@ MonoBehaviour:
   - phaseName: "\u4E2D\u76E4"
     startDistance: 300
     largeEntries:
-    - prefab: {fileID: 919132149155446097, guid: 804e7267160615346b60c45c455e9864, type: 3}
+    - prefab: {fileID: 919132149155446097, guid: 4eedb5c4ac0103b48b43f2a537918c5f, type: 3}
       weight: 2
-    - prefab: {fileID: 919132149155446097, guid: 804e7267160615346b60c45c455e9864, type: 3}
+    - prefab: {fileID: 919132149155446097, guid: 320059d3e32151b48aecc2f7cc8536bc, type: 3}
       weight: 3
     mediumEntries:
-    - prefab: {fileID: 919132149155446097, guid: 772a2af94391bb247ae94e37bae289f8, type: 3}
+    - prefab: {fileID: 919132149155446097, guid: baa1d4104670be44bb48d4a2d2258df8, type: 3}
       weight: 1
-    - prefab: {fileID: 919132149155446097, guid: 19e2d03cc48a56f49afe667aca01e22c, type: 3}
+    - prefab: {fileID: 5157426687304993740, guid: 6ba892a6244d4ec4bbaafc3bf81ef0de, type: 3}
       weight: 1
     smallEntries:
-    - prefab: {fileID: 919132149155446097, guid: 0309837fcfd64de469d08bfc533768af, type: 3}
+    - prefab: {fileID: 919132149155446097, guid: 90312237e6e631a49835492a2b3a9b4c, type: 3}
       weight: 0
-    - prefab: {fileID: 919132149155446097, guid: 6266d456c551bcf46a0b458e9619450e, type: 3}
+    - prefab: {fileID: 919132149155446097, guid: cd4f4ba14b6e2834cabb30c71dc47831, type: 3}
       weight: 0
   - phaseName: "\u30C6\u30B9\u30C8"
     startDistance: 0
     largeEntries: []
-    mediumEntries: []
+    mediumEntries:
+    - prefab: {fileID: 5157426687304993740, guid: 6ba892a6244d4ec4bbaafc3bf81ef0de, type: 3}
+      weight: 1
     smallEntries: []
