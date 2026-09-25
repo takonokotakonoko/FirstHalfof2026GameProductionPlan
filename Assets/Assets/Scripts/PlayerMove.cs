@@ -14,10 +14,13 @@ public class PlayerMove : MonoBehaviour
     public Camera mainCamera;
 
     private Rigidbody rb;
+    private Animator animator;
 
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        animator = GetComponent<Animator>();
+
         Cursor.lockState = CursorLockMode.Locked;
     }
 
@@ -44,28 +47,58 @@ public class PlayerMove : MonoBehaviour
             Vector3 movement = (cameraForward * moveZ + cameraRight * moveX).normalized;
             movement.y = 0f;
 
+            // アニメーション用
+            if (animator != null)
+            {
+                animator.SetFloat("Speed", movement.magnitude);
+            }
+
             if (movement.sqrMagnitude > 0.01f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(movement, Vector3.up);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation,
+                    targetRotation,
+                    rotateSpeed * Time.deltaTime
+                );
             }
 
-            rb.MovePosition(transform.position + movement * moveSpeed * Time.deltaTime);
+            rb.MovePosition(
+                transform.position + movement * moveSpeed * Time.deltaTime
+            );
 
-            Vector3 desiredPosition = transform.position + rotation * new Vector3(0f, cameraHeight, -cameraDistance);
+            Vector3 desiredPosition =
+                transform.position +
+                rotation * new Vector3(0f, cameraHeight, -cameraDistance);
+
             mainCamera.transform.position = desiredPosition;
             mainCamera.transform.rotation = rotation;
         }
         else
         {
             Vector3 movement = new Vector3(moveX, 0f, moveZ);
-            if (movement.sqrMagnitude > 0.01f)
+
+            // アニメーション用
+            if (animator != null)
             {
-                Quaternion targetRotation = Quaternion.LookRotation(movement, Vector3.up);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+                animator.SetFloat("Speed", movement.magnitude);
             }
 
-            rb.MovePosition(transform.position + movement * moveSpeed * Time.deltaTime);
+            if (movement.sqrMagnitude > 0.01f)
+            {
+                Quaternion targetRotation =
+                    Quaternion.LookRotation(movement, Vector3.up);
+
+                transform.rotation = Quaternion.Slerp(
+                    transform.rotation,
+                    targetRotation,
+                    rotateSpeed * Time.deltaTime
+                );
+            }
+
+            rb.MovePosition(
+                transform.position + movement * moveSpeed * Time.deltaTime
+            );
         }
     }
 }
