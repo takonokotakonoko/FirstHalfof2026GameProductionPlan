@@ -30,83 +30,88 @@ public class GenerateClusterBuildings : MonoBehaviour
 
     [Header("Grid")]
     [Tooltip("チャンク生成時は「1チャンクあたりの横方向マス数」として扱われる。")]
-    [SerializeField] private int gridWidth = 20;
+    [SerializeField] [JpLabel("グリッド横幅")] private int gridWidth = 20;
     [Tooltip("チャンク生成時は「1チャンクあたりの縦方向マス数」として扱われる。")]
-    [SerializeField] private int gridHeight = 20;
+    [SerializeField] [JpLabel("グリッド縦幅")] private int gridHeight = 20;
 
     [Header("Cell Size")]
-    [SerializeField] private float cellWidth = 3f;
-    [SerializeField] private float cellHeight = 3f;
+    [SerializeField] [JpLabel("セル幅")] private float cellWidth = 3f;
+    [SerializeField] [JpLabel("セル高さ")] private float cellHeight = 3f;
 
     [Header("Road Generation")]
-    [SerializeField] private RoadGenerationMode roadGenerationMode = RoadGenerationMode.RecursiveSubdivision;
-    [SerializeField] private int majorRoadMinInterval = 8;
-    [SerializeField] private int majorRoadMaxInterval = 14;
-    [SerializeField] private int majorRoadWidth = 3;
-    [SerializeField] private bool generateOuterBoundaryRoads = true;
-    [SerializeField] private int randomSeed = 0;
+    [SerializeField] [JpLabel("道路生成モード")] private RoadGenerationMode roadGenerationMode = RoadGenerationMode.RecursiveSubdivision;
+    [SerializeField] [JpLabel("幹線道路 最小間隔")] private int majorRoadMinInterval = 8;
+    [SerializeField] [JpLabel("幹線道路 最大間隔")] private int majorRoadMaxInterval = 14;
+    [SerializeField] [JpLabel("幹線道路幅")] private int majorRoadWidth = 3;
+    [SerializeField] [JpLabel("外周道路を生成")] private bool generateOuterBoundaryRoads = true;
+    [SerializeField] [JpLabel("乱数シード")] private int randomSeed = 0;
     [Tooltip("RecursiveSubdivisionモードでのみ使用。区画が分割可能でもこの確率で分割を打ち切り、大きめの街区として確定する。")]
-    [SerializeField] [Range(0f, 1f)] private float recursiveSplitStopChance = 0.15f;
+    [SerializeField] [Range(0f, 1f)] [JpLabel("再帰分割 打ち切り確率")] private float recursiveSplitStopChance = 0.15f;
 
     [Header("Global Lattice Variance")]
     [Tooltip("GlobalLatticeモード専用。ワールド座標のノイズで格子の粗密を変化させる強さ。0だとジッター幅が一定になる。")]
-    [SerializeField] [Range(0f, 1f)] private float latticeVarianceStrength = 0.5f;
+    [SerializeField] [Range(0f, 1f)] [JpLabel("格子ジッター強度")] private float latticeVarianceStrength = 0.5f;
     [Tooltip("GlobalLatticeモード専用。ノイズが低いセルの道路を間引いて隣と合体させ、大きめの街区を作る最大確率。")]
-    [SerializeField] [Range(0f, 0.9f)] private float latticeBlockMergeChance = 0.25f;
+    [SerializeField] [Range(0f, 0.9f)] [JpLabel("街区合体確率")] private float latticeBlockMergeChance = 0.25f;
     [Tooltip("GlobalLatticeモード専用。粗密ノイズのスケール。小さいほど粗密の切り替わりが緩やかになる。")]
-    [SerializeField] private float latticeNoiseFrequency = 0.15f;
+    [SerializeField] [JpLabel("粗密ノイズ周波数")] private float latticeNoiseFrequency = 0.15f;
     [Tooltip("GlobalLatticeモード専用。街区合体のムラ（クラスター）を作る低周波ノイズのスケール。latticeNoiseFrequencyより小さい値にすると、広い範囲でまとまって大きい街区が生まれるエリアができる。")]
-    [SerializeField] private float latticeClusterFrequency = 0.02f;
+    [SerializeField] [JpLabel("クラスターノイズ周波数")] private float latticeClusterFrequency = 0.02f;
     [Tooltip("GlobalLatticeモード専用。クラスターノイズが合体確率に与える影響の強さ。0でクラスター化なし（latticeBlockMergeChanceが一様に効く従来通り）。1に近いほど「合体しまくるエリア」と「全く合体しないエリア」の差がはっきり出る。")]
-    [SerializeField] [Range(0f, 1f)] private float latticeClusterStrength = 0.6f;
+    [SerializeField] [Range(0f, 1f)] [JpLabel("クラスター強度")] private float latticeClusterStrength = 0.6f;
 
     [Header("Building Generation")]
-    [SerializeField] private int minBuildingSize = 1;
-    [SerializeField] private int maxBuildingSize = 4;
-    [SerializeField] private int buildingPaddingWidth = 1;
+    [SerializeField] [JpLabel("建物 最小サイズ")] private int minBuildingSize = 1;
+    [SerializeField] [JpLabel("建物 最大サイズ")] private int maxBuildingSize = 4;
+    [SerializeField] [JpLabel("建物パディング幅")] private int buildingPaddingWidth = 1;
     [Tooltip("街区を敷地に再帰分割する際、まだ分割可能でもこの確率で打ち切り、大きめの敷地として確定する。")]
-    [SerializeField] [Range(0f, 1f)] private float lotSplitStopChance = 0.35f;
+    [SerializeField] [Range(0f, 1f)] [JpLabel("敷地分割 打ち切り確率")] private float lotSplitStopChance = 0.35f;
     [Tooltip("パフォーマンス課題2対策：建物Instantiateを1フレームあたりこの数だけ処理してyieldする。小さいほど1フレームの負荷は下がるが、チャンク1個の生成完了までのフレーム数は伸びる。")]
-    [SerializeField] private int buildingsInstantiatedPerFrame = 40;
+    [SerializeField] [JpLabel("1フレームあたりの建物生成数")] private int buildingsInstantiatedPerFrame = 40;
 
     [Header("Guardrail Generation")]
-    [SerializeField] private bool enablePeriodicPortals = false;
-    [SerializeField] private int guardrailPortalInterval = 8;
-    [SerializeField] private int portalMinSpacing = 3;
-    [SerializeField] private bool useManualPortalSeeds = false;
-    [SerializeField] private Vector2Int[] manualPortalSeeds;
+    [SerializeField] [JpLabel("定期ポータルを有効化")] private bool enablePeriodicPortals = false;
+    [SerializeField] [JpLabel("ガードレール ポータル間隔")] private int guardrailPortalInterval = 8;
+    [SerializeField] [JpLabel("ポータル 最小間隔")] private int portalMinSpacing = 3;
+    [SerializeField] [JpLabel("手動ポータルシードを使用")] private bool useManualPortalSeeds = false;
+    [SerializeField] [JpLabel("手動ポータルシード")] private Vector2Int[] manualPortalSeeds;
 
     [Header("Prefabs")]
-    [SerializeField] private GameObject sitePrefab;
-    [SerializeField] private GameObject roadPrefab;
-    [SerializeField] private GameObject trafficLightsPrefab;
-    [SerializeField] private GameObject guardrailPrefab;
-    [SerializeField] private GameObject billPrefab;
-    [SerializeField] private GameObject crosswalkPrefab;
+    [SerializeField] [JpLabel("敷地プレファブ")] private GameObject sitePrefab;
+    [SerializeField] [JpLabel("道路プレファブ")] private GameObject roadPrefab;
+    [SerializeField] [JpLabel("信号機プレファブ")] private GameObject trafficLightsPrefab;
+    [SerializeField] [JpLabel("ガードレールプレファブ")] private GameObject guardrailPrefab;
+    [SerializeField] [JpLabel("ビルプレファブ")] private GameObject billPrefab;
+    [SerializeField] [JpLabel("横断歩道プレファブ")] private GameObject crosswalkPrefab;
 
-    [Header("Road Tile Variants (Major, タスク10)")]
+    [Header("Road Tile Variants (Major)")]
     [Tooltip("未設定ならroadPrefabにフォールバックする。対向車線側（帯の中央寄り）のタイル。センターライン用。")]
-    [SerializeField] private GameObject majorRoadInteriorPrefab;
+    [SerializeField] [JpLabel("幹線道路 内側プレファブ")] private GameObject majorRoadInteriorPrefab;
     [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
-    [SerializeField] private GameObject majorRoadEdgePrefab;
+    [SerializeField] [JpLabel("幹線道路 縁プレファブ")] private GameObject majorRoadEdgePrefab;
     [Tooltip("未設定ならroadPrefabにフォールバックする。チャンク境界側（外周道路帯）のタイル。")]
-    [SerializeField] private GameObject majorRoadChunkBoundaryPrefab;
+    [SerializeField] [JpLabel("幹線道路 チャンク境界プレファブ")] private GameObject majorRoadChunkBoundaryPrefab;
     [Tooltip("未設定ならroadPrefabにフォールバックする。交差点タイル（現状は十字路のみ想定）。")]
-    [SerializeField] private GameObject majorRoadIntersectionPrefab;
+    [SerializeField] [JpLabel("幹線道路 交差点プレファブ")] private GameObject majorRoadIntersectionPrefab;
 
-    [Header("Road Tile Variants (Local, タスク10)")]
+    [Tooltip("未設定なら1マス版（幹線道路 内側プレファブ）2個にフォールバックする。GlobalLatticeモード限定で、同じ車線が2マス連続した箇所にまとめて配置する実寸（伸縮なし）の6mタイル。")]
+    [SerializeField] [JpLabel("幹線道路 内側プレファブ（2マス版）")] private GameObject majorRoadInteriorPrefab2;
+    [Tooltip("未設定なら1マス版（幹線道路 縁プレファブ）2個にフォールバックする。GlobalLatticeモード限定で、同じ車線が2マス連続した箇所にまとめて配置する実寸（伸縮なし）の6mタイル。")]
+    [SerializeField] [JpLabel("幹線道路 縁プレファブ（2マス版）")] private GameObject majorRoadEdgePrefab2;
+
+    [Header("Road Tile Variants (Local)")]
     [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
-    [SerializeField] private GameObject localRoadEdgePrefab;
+    [SerializeField] [JpLabel("生活道路 縁プレファブ")] private GameObject localRoadEdgePrefab;
 
     [Header("Building Rarity")]
     [Tooltip("未設定の場合は常にbillPrefabを使用する。設定すると距離に応じて抽選されたプレファブを使用する。")]
-    [SerializeField] private BuildingRaritySettings raritySettings;
+    [SerializeField] [JpLabel("レア度設定")] private BuildingRaritySettings raritySettings;
     [Tooltip("レア度抽選の距離を測る基準点（通常はマップのスタート地点＝ワールド原点）。")]
-    [SerializeField] private Vector3 distanceOriginWorldPosition = Vector3.zero;
+    [SerializeField] [JpLabel("距離基準ワールド座標")] private Vector3 distanceOriginWorldPosition = Vector3.zero;
 
     [Header("Chunk Streaming")]
     [Tooltip("falseにするとAwakeで自動生成しない。ChunkManagerがGenerateChunkを明示的に呼び出す運用で使用する。")]
-    [SerializeField] private bool autoGenerateOnAwake = true;
+    [SerializeField] [JpLabel("Awakeで自動生成")] private bool autoGenerateOnAwake = true;
 
     private static readonly Vector2Int[] FourDirections =
     {
@@ -1763,6 +1768,11 @@ public class GenerateClusterBuildings : MonoBehaviour
         Dictionary<GameObject, List<CombineInstance>> roadCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
         List<CombineInstance> crosswalkCombine = new List<CombineInstance>();
 
+        // GlobalLatticeモード限定：同じ車線が2マス連続しているMajor道路セルを実寸（伸縮なし）の
+        // 6mタイルへまとめる。mergedSecondCellsは2マス目（何も配置しない）、mergedFirstCellPrefabは
+        // 1マス目の位置に配置する2マス版プレファブ。
+        ComputeMajorRoadMergedPairs(out HashSet<Vector2Int> mergedSecondCells, out Dictionary<Vector2Int, GameObject> mergedFirstCellPrefab);
+
         UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CollectCombineInstances");
         for (int y = 0; y < gridHeight; y++)
         {
@@ -1770,6 +1780,13 @@ public class GenerateClusterBuildings : MonoBehaviour
             {
                 if (guardrailMap[x, y])
                 {
+                    continue;
+                }
+
+                Vector2Int cellCoord = new Vector2Int(x, y);
+                if (mergedSecondCells.Contains(cellCoord))
+                {
+                    // 2マス版としてまとめて配置済みなので、この1マス分は何も置かない。
                     continue;
                 }
 
@@ -1781,6 +1798,18 @@ public class GenerateClusterBuildings : MonoBehaviour
                     GameObject tile = Instantiate(trafficLightsPrefab, transform.position + localPosition, Quaternion.identity, groundParent.transform);
                     tile.name = $"TrafficLight_{x}_{y}";
                     tile.transform.localScale = scale;
+                    continue;
+                }
+
+                if (mergedFirstCellPrefab.TryGetValue(cellCoord, out GameObject mergedPrefab))
+                {
+                    bool isVertical = roadStripIsVertical[x, y];
+                    Vector3 mergedLocalPosition = isVertical
+                        ? new Vector3((x + 0.5f) * cellWidth, 0f, (y + 1f) * cellHeight)
+                        : new Vector3((x + 1f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
+                    Quaternion mergedRotation = GetMajorRoadTileRotation(x, y, ClassifyMajorRoadTile(x, y));
+                    Matrix4x4 mergedMatrix = Matrix4x4.TRS(mergedLocalPosition, mergedRotation, Vector3.one);
+                    AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, mergedPrefab), mergedPrefab, mergedMatrix);
                     continue;
                 }
 
@@ -1831,6 +1860,66 @@ public class GenerateClusterBuildings : MonoBehaviour
         yield return null;
 
         yield return PlaceBuildingsRoutine();
+    }
+
+    // GlobalLatticeモード限定：Major道路のInterior/EdgeToSidewalkセルのうち、ストリップの長さ方向
+    // （roadStripIsVerticalが示す軸）に同じ分類・同じ車線（roadOffsetFromNearEdge）が2マス連続している
+    // 箇所を検出し、実寸（伸縮なし）の2マス版プレファブでまとめて配置できるようにする。
+    // Interior/Edgeは常に別々の専用プレファブフィールドを参照するため、内側と外側を取り違えることはない。
+    // 2マス版プレファブが未設定の場合はそもそも結合対象にしない（＝既存の1マス版2個にフォールバックする）。
+    private void ComputeMajorRoadMergedPairs(out HashSet<Vector2Int> secondCells, out Dictionary<Vector2Int, GameObject> firstCellPrefab)
+    {
+        secondCells = new HashSet<Vector2Int>();
+        firstCellPrefab = new Dictionary<Vector2Int, GameObject>();
+
+        if (roadGenerationMode != RoadGenerationMode.GlobalLattice)
+        {
+            return;
+        }
+
+        bool[,] consumed = new bool[gridWidth, gridHeight];
+
+        for (int y = 0; y < gridHeight; y++)
+        {
+            for (int x = 0; x < gridWidth; x++)
+            {
+                if (consumed[x, y] || roadClassMap[x, y] != RoadClass.Major)
+                {
+                    continue;
+                }
+
+                RoadTileKind kind = ClassifyMajorRoadTile(x, y);
+                if (kind != RoadTileKind.Interior && kind != RoadTileKind.EdgeToSidewalk)
+                {
+                    continue;
+                }
+
+                GameObject prefab2 = kind == RoadTileKind.Interior ? majorRoadInteriorPrefab2 : majorRoadEdgePrefab2;
+                if (prefab2 == null)
+                {
+                    continue;
+                }
+
+                bool isVertical = roadStripIsVertical[x, y];
+                int nx = isVertical ? x : x + 1;
+                int ny = isVertical ? y + 1 : y;
+
+                if (nx >= gridWidth || ny >= gridHeight || consumed[nx, ny] || roadClassMap[nx, ny] != RoadClass.Major)
+                {
+                    continue;
+                }
+
+                if (ClassifyMajorRoadTile(nx, ny) != kind || roadOffsetFromNearEdge[nx, ny] != roadOffsetFromNearEdge[x, y])
+                {
+                    continue;
+                }
+
+                consumed[x, y] = true;
+                consumed[nx, ny] = true;
+                secondCells.Add(new Vector2Int(nx, ny));
+                firstCellPrefab[new Vector2Int(x, y)] = prefab2;
+            }
+        }
     }
 
     // セルの分類（RoadTileKind）から、実際に使う道路タイルのプレファブと回転を決める。
@@ -1981,6 +2070,74 @@ public class GenerateClusterBuildings : MonoBehaviour
         public int minX, maxX, minY, maxY;
     }
 
+    private struct BuildingPlacement
+    {
+        public int LocalX, LocalY, SizeCells;
+    }
+
+    // 大→中→小の順に試す（参考: https://ghoul-life.hatenablog.com/entry/2019/02/27/200305 のロジックを応用）。
+    // 敷地は常に単一の矩形（SplitLotRecursiveが作る）なので、境界チェックのみで穴あき形状は考慮しない。
+    // 小(1x1)は必ず置けるため、敷地全体が隙間なく埋まることが保証される。
+    private static readonly int[] BuildingSizesLargestFirst = { 3, 2, 1 };
+
+    private static List<BuildingPlacement> ComputeLotBuildingPlacements(int width, int height)
+    {
+        bool[,] occupied = new bool[width, height];
+        List<BuildingPlacement> placements = new List<BuildingPlacement>();
+
+        for (int ly = 0; ly < height; ly++)
+        {
+            for (int lx = 0; lx < width; lx++)
+            {
+                if (occupied[lx, ly])
+                {
+                    continue;
+                }
+
+                foreach (int size in BuildingSizesLargestFirst)
+                {
+                    if (lx + size > width || ly + size > height || !IsAreaFree(occupied, lx, ly, size))
+                    {
+                        continue;
+                    }
+
+                    MarkAreaOccupied(occupied, lx, ly, size);
+                    placements.Add(new BuildingPlacement { LocalX = lx, LocalY = ly, SizeCells = size });
+                    break;
+                }
+            }
+        }
+
+        return placements;
+    }
+
+    private static bool IsAreaFree(bool[,] occupied, int startX, int startY, int size)
+    {
+        for (int dy = 0; dy < size; dy++)
+        {
+            for (int dx = 0; dx < size; dx++)
+            {
+                if (occupied[startX + dx, startY + dy])
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static void MarkAreaOccupied(bool[,] occupied, int startX, int startY, int size)
+    {
+        for (int dy = 0; dy < size; dy++)
+        {
+            for (int dx = 0; dx < size; dx++)
+            {
+                occupied[startX + dx, startY + dy] = true;
+            }
+        }
+    }
+
     private IEnumerator PlaceBuildingsRoutine()
     {
         // 以前の実装は「未処理の敷地IDを見つけるたびにグリッド全体を再走査」しており、
@@ -2021,53 +2178,66 @@ public class GenerateClusterBuildings : MonoBehaviour
 
         UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.Instantiate");
         int placedSinceYield = 0;
+        // 敷地1個につき複数棟の建物が置かれるようになったため、破壊トラッキング（destroyedLotIds）は
+        // SplitLotRecursiveの敷地IDではなく、ここで振る建物1棟ごとの一意なIDを使う。
+        // Randomはチャンク生成のシードで固定されており、lotBoundsの列挙順・敷地内の充填順も
+        // 決定論的なため、再生成時も同じ建物に同じIDが振られる。
+        int nextBuildingId = 1;
         foreach (KeyValuePair<int, LotBounds> kvp in lotBounds)
         {
-            int lotId = kvp.Key;
-
-            // 破壊済みの建物はチャンク再生成時に復活させない。
-            if (destroyedLotIds.Contains(lotId))
-            {
-                continue;
-            }
-
             LotBounds bounds = kvp.Value;
             int width = bounds.maxX - bounds.minX + 1;
             int height = bounds.maxY - bounds.minY + 1;
-            Vector3 position = transform.position + new Vector3((bounds.minX + width / 2.0f) * cellWidth, 0.5f, (bounds.minY + height / 2.0f) * cellHeight);
 
-            float distance = Vector2.Distance(
-                new Vector2(position.x, position.z),
-                new Vector2(distanceOriginWorldPosition.x, distanceOriginWorldPosition.z));
-            GameObject prefabToUse = raritySettings != null ? raritySettings.Pick(distance, billPrefab) : billPrefab;
-
-            if (prefabToUse != null)
+            List<BuildingPlacement> placements = ComputeLotBuildingPlacements(width, height);
+            foreach (BuildingPlacement placement in placements)
             {
-                // 建物の正面の向きをばらばらにするため、0/90/180/270度からランダムに回転させる。
-                // 90度・270度回転時はワールドのX/Z軸が入れ替わるため、スケールに割り当てるwidth/heightも
-                // 入れ替えることで、どの回転角でも敷地の矩形からはみ出さないようにする。
-                int rotationSteps = Random.Range(0, 4);
-                Quaternion rotation = Quaternion.Euler(0f, rotationSteps * 90f, 0f);
-                bool axisSwapped = rotationSteps % 2 == 1;
+                int buildingId = nextBuildingId++;
 
-                GameObject building = Instantiate(prefabToUse, position, rotation, buildingsParent.transform);
-                building.name = $"Building_{lotId}";
-                float originalHeightScale = prefabToUse.transform.localScale.y;
-                float scaleX = (axisSwapped ? height : width) * cellWidth;
-                float scaleZ = (axisSwapped ? width : height) * cellHeight;
-                building.transform.localScale = new Vector3(scaleX, originalHeightScale, scaleZ);
+                // 破壊済みの建物はチャンク再生成時に復活させない。
+                if (destroyedLotIds.Contains(buildingId))
+                {
+                    continue;
+                }
 
-                BuildingInstance buildingInstance = building.AddComponent<BuildingInstance>();
-                buildingInstance.Initialize(chunkCoord, lotId);
-            }
+                Vector3 position = transform.position + new Vector3(
+                    (bounds.minX + placement.LocalX + placement.SizeCells / 2.0f) * cellWidth,
+                    0f,
+                    (bounds.minY + placement.LocalY + placement.SizeCells / 2.0f) * cellHeight);
 
-            placedSinceYield++;
-            if (placedSinceYield >= buildingsInstantiatedPerFrame)
-            {
-                placedSinceYield = 0;
-                UnityEngine.Profiling.Profiler.EndSample();
-                yield return null;
-                UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.Instantiate");
+                float distance = Vector2.Distance(
+                    new Vector2(position.x, position.z),
+                    new Vector2(distanceOriginWorldPosition.x, distanceOriginWorldPosition.z));
+                GameObject prefabToUse = billPrefab;
+                if (raritySettings != null)
+                {
+                    BuildingRaritySettings.Phase phase = raritySettings.GetActivePhase(distance);
+                    prefabToUse = raritySettings.Pick(phase, placement.SizeCells, billPrefab);
+                }
+
+                if (prefabToUse != null)
+                {
+                    // 建物の正面の向きをばらばらにするため、0/90/180/270度からランダムに回転させる。
+                    // 大中小はすべて正方形footprintのため、旧実装にあった回転時のwidth/height入れ替えは不要。
+                    // プレファブは底面中心ピボット・実寸（伸縮なし）で作られている前提のため、スケールは触らない。
+                    int rotationSteps = Random.Range(0, 4);
+                    Quaternion rotation = Quaternion.Euler(0f, rotationSteps * 90f, 0f);
+
+                    GameObject building = Instantiate(prefabToUse, position, rotation, buildingsParent.transform);
+                    building.name = $"Building_{buildingId}";
+
+                    BuildingInstance buildingInstance = building.AddComponent<BuildingInstance>();
+                    buildingInstance.Initialize(chunkCoord, buildingId);
+                }
+
+                placedSinceYield++;
+                if (placedSinceYield >= buildingsInstantiatedPerFrame)
+                {
+                    placedSinceYield = 0;
+                    UnityEngine.Profiling.Profiler.EndSample();
+                    yield return null;
+                    UnityEngine.Profiling.Profiler.BeginSample("PlaceBuildings.Instantiate");
+                }
             }
         }
         UnityEngine.Profiling.Profiler.EndSample();
