@@ -79,12 +79,16 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] [JpLabel("手動ポータルシード")] private Vector2Int[] manualPortalSeeds;
 
     [Header("Prefabs")]
+    [Tooltip("1マス（cellWidth×cellHeight）の実寸で作ること。コード側では引き伸ばさず、プレファブのスケールのまま置く。")]
     [SerializeField] [JpLabel("敷地プレファブ")] private GameObject sitePrefab;
+    [Tooltip("1マス（cellWidth×cellHeight）の実寸で作ること。コード側では引き伸ばさず、プレファブのスケールのまま置く。")]
     [SerializeField] [JpLabel("道路プレファブ")] private GameObject roadPrefab;
+    [Tooltip("1マス（cellWidth×cellHeight）の実寸で作ること。コード側では引き伸ばさず、プレファブのスケールのまま置く。")]
     [SerializeField] [JpLabel("信号機プレファブ")] private GameObject trafficLightsPrefab;
     [FormerlySerializedAs("guardrailPrefab")]
     [SerializeField] [JpLabel("歩道プレファブ")] private GameObject sidewalkPrefab;
     [SerializeField] [JpLabel("ビルプレファブ")] private GameObject billPrefab;
+    [Tooltip("1マス（cellWidth×cellHeight）の実寸で作ること。コード側では引き伸ばさず、プレファブのスケールのまま置く。")]
     [SerializeField] [JpLabel("横断歩道プレファブ")] private GameObject crosswalkPrefab;
 
     [Tooltip("未設定なら1マス版を並べる方式にフォールバックする。道路帯の全幅（majorRoadWidth マス）を1枚でまたぐ実寸（伸縮なし）の横断歩道。幅の分割が無いため、縞模様を全幅で自由に設計できる。")]
@@ -99,7 +103,7 @@ public class GenerateClusterBuildings : MonoBehaviour
     [SerializeField] [JpLabel("幹線道路 交差点四半分プレファブ（6m×6m）")] private GameObject majorRoadIntersectionQuarterPrefab;
 
     [Header("Road Tile Variants (Local)")]
-    [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。")]
+    [Tooltip("未設定ならroadPrefabにフォールバックする。歩道側（敷地に接する縁）のタイル。L型側溝用。1マス（cellWidth×cellHeight）の実寸で作ること。")]
     [SerializeField] [JpLabel("生活道路 縁プレファブ")] private GameObject localRoadEdgePrefab;
 
     [Header("Building Rarity")]
@@ -1878,11 +1882,13 @@ public class GenerateClusterBuildings : MonoBehaviour
         groundParent = new GameObject("GroundTiles");
         groundParent.transform.SetParent(transform, false);
 
-        // 敷地・道路・横断歩道は個別に触る対象ではないため、チャンク単位でメッシュ結合しDraw Call数を
-        // 削減する（パフォーマンス課題1対策）。信号機・歩道は、将来同じマスに「破壊可能な信号機/
-        // 歩道」を設置する可能性がある（BuildingInstanceと同じパターンを流用する想定）ため、
-        // 結合せず個別GameObjectのまま残す。結合してしまうと1本だけ個別に破壊することができなくなるため。
+        // 地面タイル（敷地・道路・横断歩道・歩道・信号機）はすべて、チャンク単位・種類ごとにメッシュ結合する
+        // （パフォーマンス課題1対策）。個別に触る（壊す）対象は建物だけなので、地面は1マスずつInstantiateしない。
+        // 歩道は1チャンクで約4,000マスあり、1個ずつInstantiateすると生成時に1フレームへ集中してカクつきの原因になっていた
+        // （基本設計.md「タスク8 追加対応（2026-09-26）」参照）。
         List<CombineInstance> siteCombine = new List<CombineInstance>();
+        List<CombineInstance> sidewalkCombine = new List<CombineInstance>();
+        List<CombineInstance> trafficLightCombine = new List<CombineInstance>();
         // タスク10：道路タイルはセルごとに使うプレファブ（センターライン/L型側溝等）が変わり得るため、
         // プレファブ種類ごとにCombineInstanceリストを持つ辞書で管理する。
         Dictionary<GameObject, List<CombineInstance>> roadCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
@@ -1893,8 +1899,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         ComputeMajorRoadTiles(out HashSet<Vector2Int> majorRoadTileCells, out List<MergedTile> majorRoadTiles);
         foreach (MergedTile roadTile in majorRoadTiles)
         {
-            Matrix4x4 roadTileMatrix = Matrix4x4.TRS(roadTile.LocalPosition, roadTile.Rotation, roadTile.Prefab.transform.localScale);
-            AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadTile.Prefab), roadTile.Prefab, roadTileMatrix);
+            AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadTile.Prefab), roadTile.Prefab, roadTile.LocalPosition, roadTile.Rotation);
         }
 
         // 横断歩道を帯の全幅でまたぐ1枚のバーにまとめる。まとめられたセルは1マス版の対象から外す。
@@ -1902,11 +1907,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         Dictionary<GameObject, List<CombineInstance>> crosswalkBarCombineByPrefab = new Dictionary<GameObject, List<CombineInstance>>();
         foreach (MergedTile bar in crosswalkBars)
         {
-            // プレファブ自身のTransformスケールを尊重する。納品仕様上は実寸・スケール=1が前提のため
-            // 通常は無変換（Vector3.one）と同じ結果になるが、検証用にUnity上で手動作成したプレファブが
-            // Transformのスケールで寸法調整されている場合にも正しく反映されるようにするため。
-            Matrix4x4 barMatrix = Matrix4x4.TRS(bar.LocalPosition, bar.Rotation, bar.Prefab.transform.localScale);
-            AddCombineInstance(GetOrCreateCombineList(crosswalkBarCombineByPrefab, bar.Prefab), bar.Prefab, barMatrix);
+            AddCombineInstance(GetOrCreateCombineList(crosswalkBarCombineByPrefab, bar.Prefab), bar.Prefab, bar.LocalPosition, bar.Rotation);
         }
 
         UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CollectCombineInstances");
@@ -1914,11 +1915,6 @@ public class GenerateClusterBuildings : MonoBehaviour
         {
             for (int x = 0; x < gridWidth; x++)
             {
-                if (sidewalkMap[x, y])
-                {
-                    continue;
-                }
-
                 Vector2Int cellCoord = new Vector2Int(x, y);
                 if (majorRoadTileCells.Contains(cellCoord))
                 {
@@ -1927,17 +1923,26 @@ public class GenerateClusterBuildings : MonoBehaviour
                 }
 
                 Vector3 localPosition = new Vector3((x + 0.5f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
-                Vector3 scale = new Vector3(cellWidth, 1f, cellHeight);
 
-                if (trafficLightMap[x, y] && trafficLightsPrefab != null)
+                // 歩道セルは幹線道路セルにならないため、上の判定より後ろに置いても結果は変わらない。
+                // 信号機セルはMarkBlockCornersAsTrafficLightsでsidewalkMapがfalseにされるため、ここには来ない。
+                if (sidewalkMap[x, y])
                 {
-                    GameObject tile = Instantiate(trafficLightsPrefab, transform.position + localPosition, Quaternion.identity, groundParent.transform);
-                    tile.name = $"TrafficLight_{x}_{y}";
-                    tile.transform.localScale = scale;
+                    if (sidewalkPrefab != null)
+                    {
+                        AddCombineInstance(sidewalkCombine, sidewalkPrefab, localPosition, GetSidewalkRotation(x, y));
+                    }
+
                     continue;
                 }
 
-                Matrix4x4 matrix = Matrix4x4.TRS(localPosition, Quaternion.identity, scale);
+                // 1マス版のタイルも実寸（伸縮なし）で置く。以前はセルの大きさ（cellWidth×1×cellHeight）を
+                // スケールとして掛けていたため、実寸3mで作ったモデルが9mに引き伸ばされていた。
+                if (trafficLightMap[x, y] && trafficLightsPrefab != null)
+                {
+                    AddCombineInstance(trafficLightCombine, trafficLightsPrefab, localPosition, Quaternion.identity);
+                    continue;
+                }
 
                 if (crosswalkMap[x, y] && crosswalkBarCells.Contains(cellCoord))
                 {
@@ -1948,18 +1953,16 @@ public class GenerateClusterBuildings : MonoBehaviour
                 if (crosswalkMap[x, y] && crosswalkPrefab != null)
                 {
                     Quaternion crosswalkRotation = GetCrosswalkTileRotation(x, y);
-                    Matrix4x4 crosswalkMatrix = Matrix4x4.TRS(localPosition, crosswalkRotation, scale);
-                    AddCombineInstance(crosswalkCombine, crosswalkPrefab, crosswalkMatrix);
+                    AddCombineInstance(crosswalkCombine, crosswalkPrefab, localPosition, crosswalkRotation);
                 }
                 else if (landMap[x, y] == LandType.Road)
                 {
                     GameObject roadVariantPrefab = GetRoadTileVariant(x, y, out Quaternion roadRotation);
-                    Matrix4x4 roadMatrix = Matrix4x4.TRS(localPosition, roadRotation, scale);
-                    AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadVariantPrefab), roadVariantPrefab, roadMatrix);
+                    AddCombineInstance(GetOrCreateCombineList(roadCombineByPrefab, roadVariantPrefab), roadVariantPrefab, localPosition, roadRotation);
                 }
                 else
                 {
-                    AddCombineInstance(siteCombine, sitePrefab, matrix);
+                    AddCombineInstance(siteCombine, sitePrefab, localPosition, Quaternion.identity);
                 }
             }
         }
@@ -1990,8 +1993,21 @@ public class GenerateClusterBuildings : MonoBehaviour
         UnityEngine.Profiling.Profiler.EndSample();
         yield return null;
 
-        UnityEngine.Profiling.Profiler.BeginSample("PlaceSidewalks");
-        PlaceSidewalks();
+        // 当たり判定の焼き込み（MeshColliderへの代入）を敷地・道路と同じフレームに重ねないよう、独立した1ステップにする。
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.Sidewalks");
+        if (sidewalkPrefab == null)
+        {
+            Debug.LogWarning("sidewalkPrefab is not assigned. Sidewalk placement is skipped.");
+        }
+        else
+        {
+            CreateCombinedTileMesh("Sidewalks", sidewalkPrefab, sidewalkCombine);
+        }
+        UnityEngine.Profiling.Profiler.EndSample();
+        yield return null;
+
+        UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.TrafficLights");
+        CreateCombinedTileMesh("TrafficLights", trafficLightsPrefab, trafficLightCombine);
         UnityEngine.Profiling.Profiler.EndSample();
         yield return null;
 
@@ -2457,7 +2473,14 @@ public class GenerateClusterBuildings : MonoBehaviour
         return meshFilter != null && meshFilter.sharedMesh != null;
     }
 
-    private void AddCombineInstance(List<CombineInstance> combineInstances, GameObject prefab, Matrix4x4 matrix)
+    // 地面タイルはすべて実寸（伸縮なし）で置く。セルの大きさ（cellWidth×cellHeight）に合わせて引き伸ばさず、
+    // プレファブ自身のTransformスケールだけを反映する。納品仕様上は実寸・スケール=1が前提のため通常は無変換になるが、
+    // 検証用にUnity上で手動作成したプレファブ（1m角のCubeをTransformのスケールで3mにしたもの等）も正しい大きさになる。
+    // ルートの位置・回転は反映しない（配置位置と向きはグリッドから決める）。
+    // 複数マテリアルのモデル（横断歩道のアスファルト＋白い縞など）に対応するため、サブメッシュ（＝マテリアル）ごとに
+    // CombineInstanceを1つずつ作る。CombineInstanceは subMeshIndex（既定値0）で指定した1サブメッシュしか結合しないため、
+    // 1つだけ作ると2つ目以降のサブメッシュが抜け落ちて穴になる。
+    private void AddCombineInstance(List<CombineInstance> combineInstances, GameObject prefab, Vector3 localPosition, Quaternion rotation)
     {
         MeshFilter prefabMeshFilter = prefab.GetComponentInChildren<MeshFilter>();
         if (prefabMeshFilter == null || prefabMeshFilter.sharedMesh == null)
@@ -2465,16 +2488,25 @@ public class GenerateClusterBuildings : MonoBehaviour
             return;
         }
 
-        combineInstances.Add(new CombineInstance
+        Mesh mesh = prefabMeshFilter.sharedMesh;
+        Matrix4x4 matrix = Matrix4x4.TRS(localPosition, rotation, prefab.transform.localScale);
+
+        for (int subMeshIndex = 0; subMeshIndex < mesh.subMeshCount; subMeshIndex++)
         {
-            mesh = prefabMeshFilter.sharedMesh,
-            transform = matrix,
-        });
+            combineInstances.Add(new CombineInstance
+            {
+                mesh = mesh,
+                subMeshIndex = subMeshIndex,
+                transform = matrix,
+            });
+        }
     }
 
-    // combineInstancesを1つのMeshにまとめ、レンダリングと当たり判定の両方に同じMeshを使い回す。
-    // 敷地・道路・横断歩道はcellWidth×cellHeightの単純な板（Unity組み込みCubeメッシュ）のみを想定しており、
-    // マルチマテリアル・複数サブメッシュのprefabに差し替えた場合はmergeSubMeshes=trueにより見た目が崩れる点に注意。
+    // combineInstancesをサブメッシュ（＝マテリアル）ごとに1つのMeshにまとめ、レンダリングと当たり判定の両方に同じMeshを使い回す。
+    // サブメッシュ番号iのMeshには、プレファブのi番目のマテリアルを割り当てる（Unityのサブメッシュとマテリアルの対応と同じ）。
+    // マテリアルごとに別オブジェクトにしている。1つのMeshに複数マテリアルを持たせるには「サブメッシュごとに結合→さらに結合」の
+    // 2段階が必要で頂点のコピーが1回増える一方、描画呼び出しの数はどちらもマテリアルの数で変わらないため。
+    // 単一マテリアルのモデルは、従来どおり1オブジェクト（名前もnameのまま）になる。
     private void CreateCombinedTileMesh(string name, GameObject prefab, List<CombineInstance> combineInstances)
     {
         if (prefab == null || combineInstances.Count == 0)
@@ -2488,55 +2520,45 @@ public class GenerateClusterBuildings : MonoBehaviour
             return;
         }
 
-        // 1チャンク分（最大gridWidth×gridHeightセル）を結合すると65,535頂点を超え得るため、
-        // 16bitインデックス（Unity既定）の上限を超えないようUInt32に切り替える。
-        Mesh combinedMesh = new Mesh();
-        combinedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        combinedMesh.CombineMeshes(combineInstances.ToArray(), true, true);
+        Material[] materials = prefabRenderer.sharedMaterials;
 
-        GameObject combinedObject = new GameObject(name);
-        combinedObject.transform.SetParent(groundParent.transform, false);
-
-        MeshFilter meshFilter = combinedObject.AddComponent<MeshFilter>();
-        meshFilter.sharedMesh = combinedMesh;
-
-        MeshRenderer meshRenderer = combinedObject.AddComponent<MeshRenderer>();
-        meshRenderer.sharedMaterial = prefabRenderer.sharedMaterial;
-
-        MeshCollider meshCollider = combinedObject.AddComponent<MeshCollider>();
-        meshCollider.sharedMesh = combinedMesh;
-    }
-
-    private void PlaceSidewalks()
-    {
-        if (sidewalkPrefab == null)
+        List<List<CombineInstance>> instancesBySubMesh = new List<List<CombineInstance>>();
+        foreach (CombineInstance instance in combineInstances)
         {
-            Debug.LogWarning("sidewalkPrefab is not assigned. Sidewalk placement is skipped.");
-            return;
+            while (instancesBySubMesh.Count <= instance.subMeshIndex)
+            {
+                instancesBySubMesh.Add(new List<CombineInstance>());
+            }
+
+            instancesBySubMesh[instance.subMeshIndex].Add(instance);
         }
 
-        GameObject sidewalkParent = new GameObject("Sidewalks");
-        sidewalkParent.transform.SetParent(groundParent.transform, false);
-
-        for (int y = 0; y < gridHeight; y++)
+        for (int subMeshIndex = 0; subMeshIndex < instancesBySubMesh.Count; subMeshIndex++)
         {
-            for (int x = 0; x < gridWidth; x++)
+            // マテリアルが足りないサブメッシュは、Unityでもプレファブ上で描画されないため同じく作らない。
+            if (instancesBySubMesh[subMeshIndex].Count == 0 || subMeshIndex >= materials.Length)
             {
-                if (!sidewalkMap[x, y])
-                {
-                    continue;
-                }
-
-                if (trafficLightMap[x, y])
-                {
-                    continue;
-                }
-
-                Vector3 position = transform.position + new Vector3((x + 0.5f) * cellWidth, 0f, (y + 0.5f) * cellHeight);
-                Quaternion rotation = GetSidewalkRotation(x, y);
-                GameObject sidewalk = Instantiate(sidewalkPrefab, position, rotation, sidewalkParent.transform);
-                sidewalk.name = $"Sidewalk_{x}_{y}";
+                continue;
             }
+
+            // 1チャンク分（最大gridWidth×gridHeightセル）を結合すると65,535頂点を超え得るため、
+            // 16bitインデックス（Unity既定）の上限を超えないようUInt32に切り替える。
+            Mesh combinedMesh = new Mesh();
+            combinedMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            combinedMesh.CombineMeshes(instancesBySubMesh[subMeshIndex].ToArray(), true, true);
+
+            string objectName = instancesBySubMesh.Count == 1 ? name : $"{name}_{subMeshIndex}";
+            GameObject combinedObject = new GameObject(objectName);
+            combinedObject.transform.SetParent(groundParent.transform, false);
+
+            MeshFilter meshFilter = combinedObject.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = combinedMesh;
+
+            MeshRenderer meshRenderer = combinedObject.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = materials[subMeshIndex];
+
+            MeshCollider meshCollider = combinedObject.AddComponent<MeshCollider>();
+            meshCollider.sharedMesh = combinedMesh;
         }
     }
 
