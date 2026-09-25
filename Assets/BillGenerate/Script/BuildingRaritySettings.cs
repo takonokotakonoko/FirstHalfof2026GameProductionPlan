@@ -68,7 +68,9 @@ public class BuildingRaritySettings : ScriptableObject
     }
 
     // 指定フェーズ内の、sizeCells（1=小,2=中,3=大）に対応する群から重み付き抽選する。該当なしはfallback。
-    public GameObject Pick(Phase phase, int sizeCells, GameObject fallback)
+    // rngは呼び出し元チャンク専用の乱数。共有のUnityEngine.Randomを使うと、同時に生成中の別チャンクや
+    // 他システムの乱数消費が割り込み、同じチャンクでも抽選結果が変わってしまう（基本設計.md参照）。
+    public GameObject Pick(Phase phase, int sizeCells, GameObject fallback, System.Random rng)
     {
         if (phase == null)
         {
@@ -104,7 +106,7 @@ public class BuildingRaritySettings : ScriptableObject
             return fallback;
         }
 
-        float roll = Random.Range(0f, totalWeight);
+        float roll = (float)(rng.NextDouble() * totalWeight);
         float cumulative = 0f;
 
         for (int i = 0; i < entries.Length; i++)
