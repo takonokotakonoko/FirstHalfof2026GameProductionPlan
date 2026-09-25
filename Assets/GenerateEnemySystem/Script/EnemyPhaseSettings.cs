@@ -6,9 +6,11 @@ public class EnemyPhaseSettings : ScriptableObject
     [System.Serializable]
     public class EnemyTypeEntry
     {
+        [JpLabel("プレファブ")]
         public GameObject prefab;
 
         [Min(0.01f)]
+        [JpLabel("重み")]
         public float weight = 1f;
     }
 
@@ -16,25 +18,32 @@ public class EnemyPhaseSettings : ScriptableObject
     public class Phase
     {
         [Tooltip("Inspector表示用のラベル。判定には使用しない。")]
+        [JpLabel("フェーズ名")]
         public string phaseName;
 
         [Tooltip("このフェーズが開始する経過時間（秒）。ゲーム開始からの絶対時間で、前のフェーズからの相対時間ではない。")]
+        [JpLabel("開始時刻（秒）")]
         public float startTimeSeconds;
 
         [Tooltip("このフェーズでの敵の生成間隔（秒）。短いほど速く湧く。")]
         [Min(0.01f)]
+        [JpLabel("生成間隔（秒）")]
         public float spawnIntervalSeconds = 2f;
 
         [Tooltip("このフェーズで生成対象範囲内に同時に存在できる敵の総数の上限。")]
         [Min(0)]
+        [JpLabel("同時出現数上限")]
         public int maxActiveEnemies = 20;
 
         [Tooltip("このフェーズが始まった瞬間、前のフェーズにしか出現しない種類のアクティブな敵を強制的に削除するか。falseの場合は距離超過・確率的な間引きで自然に退場するまで残る。")]
+        [JpLabel("開始時に前フェーズの敵を強制削除")]
         public bool clearPreviousPhaseEnemiesOnEnter;
 
+        [JpLabel("敵タイプ一覧")]
         public EnemyTypeEntry[] enemyTypes;
     }
 
+    [JpLabel("フェーズ一覧")]
     public Phase[] phases;
 
     // 経過時間以下のstartTimeSecondsを持つフェーズのうち、最も開始が遅いものを返す。該当なしはnull。
