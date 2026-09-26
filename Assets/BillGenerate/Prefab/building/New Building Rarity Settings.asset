@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fef6469a6da153458895f9d5d857245, type: 3}
+  m_Name: New Building Rarity Settings
+  m_EditorClassIdentifier: Assembly-CSharp::BuildingRaritySettings
+  phases:
+  - phaseName: "\u5E8F\u76E4"
+    startDistance: 0
+    largeEntries:
+    - prefab: {fileID: 4635946404576452014, guid: e00bcc47eee8a13468f27eba006e2aba, type: 3}
+      weight: 1
+    mediumEntries:
+    - prefab: {fileID: 7494810551783563539, guid: df85612dc53a81347ab705427ae8b0bf, type: 3}
+      weight: 1
+    smallEntries:
+    - prefab: {fileID: 6091509173383183337, guid: 0513427956319114283b915bb09655d5, type: 3}
+      weight: 1
+    - prefab: {fileID: 2147679276278242728, guid: c7edd20aa973d904bb61842f47343065, type: 3}
+      weight: 1
+  - phaseName: "\u4E2D\u76E4"
+    startDistance: 200
+    largeEntries:
+    - prefab: {fileID: 4635946404576452014, guid: e00bcc47eee8a13468f27eba006e2aba, type: 3}
+      weight: 1
+    mediumEntries:
+    - prefab: {fileID: 7494810551783563539, guid: df85612dc53a81347ab705427ae8b0bf, type: 3}
+      weight: 1
+    - prefab: {fileID: 5817279009196251907, guid: 961360d56f920ce4ebe62f07ded10c7a, type: 3}
+      weight: 1
+    smallEntries:
+    - prefab: {fileID: 6091509173383183337, guid: 0513427956319114283b915bb09655d5, type: 3}
+      weight: 1
+    - prefab: {fileID: 2147679276278242728, guid: c7edd20aa973d904bb61842f47343065, type: 3}
+      weight: 1
+  - phaseName: "\u7D42\u76E4"
+    startDistance: 400
+    largeEntries:
+    - prefab: {fileID: 4635946404576452014, guid: e00bcc47eee8a13468f27eba006e2aba, type: 3}
+      weight: 1
+    - prefab: {fileID: 3302873424164348119, guid: dfdcac2075d36b045811defe7bb3a9e0, type: 3}
+      weight: 1
+    mediumEntries:
+    - prefab: {fileID: 7494810551783563539, guid: df85612dc53a81347ab705427ae8b0bf, type: 3}
+      weight: 1
+    - prefab: {fileID: 5817279009196251907, guid: 961360d56f920ce4ebe62f07ded10c7a, type: 3}
+      weight: 1
+    smallEntries:
+    - prefab: {fileID: 6091509173383183337, guid: 0513427956319114283b915bb09655d5, type: 3}
+      weight: 1
+    - prefab: {fileID: 2147679276278242728, guid: c7edd20aa973d904bb61842f47343065, type: 3}
+      weight: 1
