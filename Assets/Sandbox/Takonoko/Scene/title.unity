@@ -572,7 +572,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_FontSize: 46
     m_FontStyle: 1
     m_BestFit: 0
@@ -637,7 +637,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fee4dea5c4a5fa4f9a7349579a977ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
-  gameDuration: 20
+  gameDuration: 60
   timerText: {fileID: 1720249913}
   resultScreen: {fileID: 1814649985}
   uiGroup: {fileID: 635690613}
@@ -799,6 +799,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1720249912}
+  - {fileID: 1389609038}
   m_Father: {fileID: 1955592744}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -1174,6 +1175,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -1325,6 +1330,10 @@ PrefabInstance:
       propertyPath: m_Text
       value: "\u52B9\u679C\u97F3\u306E\u97F3\u91CF"
       objectReference: {fileID: 0}
+    - target: {fileID: 1645585380318563498, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     - target: {fileID: 2277135634253920607, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
       propertyPath: m_Name
       value: SoundSlider
@@ -1433,7 +1442,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_FontSize: 85
     m_FontStyle: 1
     m_BestFit: 0
@@ -1552,6 +1561,85 @@ RectTransform:
   m_AnchoredPosition: {x: 160, y: 50}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
+--- !u!1 &1389609037
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1389609038}
+  - component: {fileID: 1389609040}
+  - component: {fileID: 1389609039}
+  m_Layer: 5
+  m_Name: info
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1389609038
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1389609037}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 635690614}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 0, y: 380}
+  m_SizeDelta: {x: 953, y: 200}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1389609039
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1389609037}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
+    m_FontSize: 26
+    m_FontStyle: 0
+    m_BestFit: 0
+    m_MinSize: 10
+    m_MaxSize: 295
+    m_Alignment: 4
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: "\u30DE\u30A6\u30B9\u3067\u8996\u70B9\u79FB\u52D5\u3000\u77E2\u5370\u30AD\u30FC\u3067\u79FB\u52D5\u3000\u30AF\u30EA\u30C3\u30AF\u3067\u653B\u6483\n\u8857\u3092\u7DF4\u308A\u6B69\u3053\u3046\uFF01"
+--- !u!222 &1389609040
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1389609037}
+  m_CullTransparentMesh: 1
 --- !u!1 &1435455260
 GameObject:
   m_ObjectHideFlags: 0
@@ -1811,7 +1899,7 @@ RectTransform:
   m_GameObject: {fileID: 1557621755}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.16, y: 0.16, z: 0.16}
+  m_LocalScale: {x: 0.21, y: 0.21, z: 0.21}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 938888445}
@@ -1841,7 +1929,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 5116430790c2c074bb988d899eff7aee, type: 3}
+  m_Sprite: {fileID: 21300000, guid: fe67884540068b1499635bfa68689963, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2139,6 +2227,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2207,7 +2299,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_FontSize: 32
     m_FontStyle: 1
     m_BestFit: 0
@@ -2240,7 +2332,7 @@ GameObject:
   - component: {fileID: 1720249914}
   - component: {fileID: 1720249913}
   m_Layer: 5
-  m_Name: Text (Legacy)
+  m_Name: timer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2286,7 +2378,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_FontSize: 37
     m_FontStyle: 0
     m_BestFit: 0
@@ -2921,7 +3013,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 217.2, y: -101.1}
+  m_AnchoredPosition: {x: 237.17, y: -118.6}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2062688609
@@ -2945,7 +3037,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_FontSize: 46
     m_FontStyle: 1
     m_BestFit: 0
@@ -3186,6 +3278,10 @@ PrefabInstance:
       propertyPath: m_Text
       value: "\u6226\u95D8\u958B\u59CB"
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -3423,6 +3519,10 @@ PrefabInstance:
       propertyPath: m_AnchorMin.x
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1645585380318563498, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     - target: {fileID: 2277135634253920607, guid: 7b6f6d50f89c9b749a1f545c30c2bb1d, type: 3}
       propertyPath: m_Name
       value: MusicSlider
@@ -3600,6 +3700,10 @@ PrefabInstance:
       propertyPath: m_Color.a
       value: 0.6117647
       objectReference: {fileID: 0}
+    - target: {fileID: 8870586636563081765, guid: be9e7b196a3b4b849adf97f39a088956, type: 3}
+      propertyPath: m_FontData.m_Font
+      value: 
+      objectReference: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
