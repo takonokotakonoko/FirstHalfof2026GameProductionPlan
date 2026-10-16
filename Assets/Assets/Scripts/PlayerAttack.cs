@@ -129,11 +129,16 @@ public class PlayerAttack : MonoBehaviour
     private float normalReadyTime;
     private float skillReadyTime;
     private bool isAttackAnimating;
+    private PlayerHealth playerHealth;
     [Header("武器ごとのアニメーション")]
     [SerializeField] private List<WeaponAnimatorProfile> weaponAnimators = new List<WeaponAnimatorProfile>();
 
     private void Awake()
     {
+        playerHealth = GetComponentInParent<PlayerHealth>();
+        if (playerHealth == null)
+            Debug.LogError("PlayerAttack requires a PlayerHealth component on this object or a parent.", this);
+
         EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
         ApplyUsableWeaponStates();
@@ -333,20 +338,23 @@ public class PlayerAttack : MonoBehaviour
             QueryTriggerInteraction.Ignore
         );
 
+        float finalDamage = playerHealth != null
+            ? profile.damage * playerHealth.StatMultiplier
+            : profile.damage;
         int damageCount = 0;
         foreach (Collider hit in hitColliders)
         {
             if (hit.gameObject == gameObject)
                 continue;
 
-            if (hit.TryGetComponent<IDamage>(out var damageable))
+            if (hit.GetComponentInParent<IDamage>() is IDamage damageable)
             {
-                damageable.TakeDamage(profile.damage);
+                damageable.TakeDamage(finalDamage);
                 damageCount++;
             }
         }
 
-        Debug.Log($"{profile.mode} 攻撃: {damageCount}体にダメージ {profile.damage}");
+        Debug.Log($"{profile.mode} 攻撃: {damageCount}体にダメージ {finalDamage}");
     }
 
     private void UpdateCooldownDisplay()
@@ -492,5 +500,36 @@ public class PlayerAttack : MonoBehaviour
         Vector3 center = transform.position + transform.forward * activeProfile.offset + Vector3.up * attackHeight;
         Vector3 size = new Vector3(activeProfile.radius * 2f, attackHeight * 2f, activeProfile.range);
         AttackRangeVisualizer.DrawBoxRange(center, size, transform.rotation, activeProfile.gizmoColor, 0.05f);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        if (usableWeapons == null || usableWeapons.Count == 0 || weaponProfiles == null)
+            return;
+
+        WeaponType selectedWeapon = usableWeapons[0];
+        foreach (WeaponProfile weapon in weaponProfiles)
+        {
+            if (weapon == null || weapon.weaponType != selectedWeapon)
+                continue;
+
+            DrawAttackProfileGizmo(weapon.normalAttack);
+            DrawAttackProfileGizmo(weapon.skillAttack);
+            return;
+        }
+    }
+
+    private void DrawAttackProfileGizmo(AttackProfile profile)
+    {
+        if (profile == null)
+            return;
+
+        Vector3 center = transform.position + transform.forward * profile.offset + Vector3.up * attackHeight;
+        Vector3 size = new Vector3(profile.radius * 2f, attackHeight * 2f, profile.range);
+
+        Gizmos.color = profile.gizmoColor;
+        Gizmos.matrix = Matrix4x4.TRS(center, transform.rotation, Vector3.one);
+        Gizmos.DrawWireCube(Vector3.zero, size);
+        Gizmos.matrix = Matrix4x4.identity;
     }
 }

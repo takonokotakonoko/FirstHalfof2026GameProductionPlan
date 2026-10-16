@@ -16,15 +16,15 @@ MonoBehaviour:
   - phaseName: "\u5E8F\u76E4"
     startDistance: 0
     largeEntries:
-    - prefab: {fileID: 4635946404576452014, guid: e00bcc47eee8a13468f27eba006e2aba, type: 3}
+    - prefab: {fileID: 4564901355028001074, guid: 36b6ec2f82f5cf048b4fe05e30f36488, type: 3}
       weight: 1
     mediumEntries:
-    - prefab: {fileID: 7494810551783563539, guid: df85612dc53a81347ab705427ae8b0bf, type: 3}
+    - prefab: {fileID: 8639108465130980426, guid: 37815a68bba1c764bad556f2de3eef43, type: 3}
       weight: 1
     smallEntries:
-    - prefab: {fileID: 6091509173383183337, guid: 0513427956319114283b915bb09655d5, type: 3}
+    - prefab: {fileID: 4441674926046825071, guid: 2108c53dd6e347a4e8f6f1b84e364bf7, type: 3}
       weight: 1
-    - prefab: {fileID: 2147679276278242728, guid: c7edd20aa973d904bb61842f47343065, type: 3}
+    - prefab: {fileID: 5971602447406010644, guid: f3c77a2df806c7e409c41c9c61d9935c, type: 3}
       weight: 1
   - phaseName: "\u4E2D\u76E4"
     startDistance: 200
