@@ -1,19 +1,36 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerHealth : MonoBehaviour, IDamage
 {
     [SerializeField] private float maxHealth = 100f;
+    [SerializeField] private Slider HpBar;
+    [Min(1)] public int level = 1;
     private float currentHealth;
 
-    private void Start()
+    public float StatMultiplier => 1f + Mathf.Max(0, level - 1) * 0.1f;
+
+    private void Awake()
     {
-        currentHealth = maxHealth;
+        level = Mathf.Max(1, level);
+        currentHealth = GetMaxHealth();
+        UpdateHealthBar();
+    }
+
+    public void LevelUp()
+    {
+        float previousMaxHealth = GetMaxHealth();
+        level++;
+        currentHealth += GetMaxHealth() - previousMaxHealth;
+        UpdateHealthBar();
+        Debug.Log($"Player level up! Level: {level}, Max HP: {GetMaxHealth()}");
     }
 
     public void TakeDamage(float damageAmount)
     {
         currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} Ç… {damageAmount} É_ÉÅÅ[ÉWÅI écÇËHP: {currentHealth}");
+        UpdateHealthBar();
+        Debug.Log($"{gameObject.name} „Å´ {damageAmount} „ÉÄ„É°„Éº„Ç∏ÔºÅ ÊÆã„ÇäHP: {currentHealth}");
 
         if (currentHealth <= 0f)
         {
@@ -21,9 +38,23 @@ public class PlayerHealth : MonoBehaviour, IDamage
         }
     }
 
+    private float GetMaxHealth()
+    {
+        return maxHealth * StatMultiplier;
+    }
+
+    private void UpdateHealthBar()
+    {
+        if (HpBar == null)
+            return;
+
+        HpBar.maxValue = GetMaxHealth();
+        HpBar.value = currentHealth;
+    }
+
     private void Die()
     {
-        Debug.Log("Player ÇÕì|ÇÍÇΩ");
-        // ïKóvÇ»ÇÁÇ±Ç±Ç≈ÉäÉXÉ|Å[ÉìÇ‚ÉQÅ[ÉÄÉIÅ[ÉoÅ[èàóùÇì¸ÇÍÇÈ
+        Debug.Log("Player „ÅØÂÄí„Çå„Åü");
+        // ÂøÖË¶Å„Å™„Çâ„Åì„Åì„Åß„É™„Çπ„Éù„Éº„É≥„ÇÑ„Ç≤„Éº„É†„Ç™„Éº„Éê„ÉºÂá¶ÁêÜ„ÇíÂÖ•„Çå„Çã
     }
 }

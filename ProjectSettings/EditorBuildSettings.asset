@@ -8,8 +8,14 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/Player.unity
     guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
+  - enabled: 0
     path: Assets/Scenes/Billgenerate.unity
     guid: cf3d708ee6a1bbc4c96c38317a2bc9d6
+  - enabled: 1
+    path: Assets/Sandbox/Takonoko/Scene/title.unity
+    guid: 8cb8b5849e2558248a9cf55c4c710ba5
+  - enabled: 1
+    path: Assets/Sandbox/Takonoko/Scene/game.unity
+    guid: 374e383ddf07aa64291ba45d995efd58
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

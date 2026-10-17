@@ -159,11 +159,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMove
   moveSpeed: 5
   rotateSpeed: 10
-  cameraDistance: 6
-  cameraHeight: 2.5
-  cameraRotationSpeed: 180
+  cameraHeight: 0.5
   cameraPitchMin: -20
   cameraPitchMax: 80
+  cameraSensitivity: {x: 3, y: 3}
   cameraAngle: {x: 0, y: 20}
   mainCamera: {fileID: 0}
 --- !u!114 &4788761331929556817
@@ -179,6 +178,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
   maxHealth: 100
+  HpBar: {fileID: 0}
 --- !u!114 &590732885928043253
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -196,18 +196,18 @@ MonoBehaviour:
   - weaponType: 0
     normalAttack:
       mode: 0
-      range: 1.6
-      radius: 0.8
-      damage: 20
-      offset: 0.6
+      range: 4
+      radius: 1.5
+      damage: 50
+      offset: 2
       cooldown: 0.35
       gizmoColor: {r: 1, g: 0, b: 0, a: 1}
     skillAttack:
       mode: 1
-      range: 2.2
-      radius: 1.2
-      damage: 10
-      offset: 0.8
+      range: 5
+      radius: 2.5
+      damage: 40
+      offset: 2.5
       cooldown: 0.8
       gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
     visuals:
@@ -349,7 +349,7 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
     effectSpawnPoint: {fileID: 0}
     showTime: 0.15
-  attackHeight: 1.1
+  attackHeight: 2
   normal_Cooldown: {fileID: 0}
   skill_Cooldown: {fileID: 0}
   normalCooldownGauge: {fileID: 0}

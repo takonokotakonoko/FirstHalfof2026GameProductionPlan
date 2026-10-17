@@ -2,15 +2,20 @@ using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
 {
+    [Header("プレイヤーの移動速度")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float rotateSpeed = 10f;
-    [SerializeField] private float cameraDistance = 6f;
-    [SerializeField] private float cameraHeight = 2.5f;
-    [SerializeField] private float cameraRotationSpeed = 180f;
-    [SerializeField] private float cameraPitchMin = -20f;
-    [SerializeField] private float cameraPitchMax = 80f;
-    [SerializeField] private Vector2 cameraAngle = new Vector2(0f, 20f);
 
+    [Header("一人称視点カメラ")]
+    [SerializeField] private float cameraHeight = 1.6f;
+    [SerializeField] private float cameraPitchMin = -80f;
+    [SerializeField] private float cameraPitchMax = 80f;
+
+    [Header("カメラの感度")]
+    [SerializeField] private Vector2 cameraSensitivity = new Vector2(2f, 2f);
+    [SerializeField] private Vector2 cameraAngle = Vector2.zero;
+
+    [Header("一人称カメラ")]
     public Camera mainCamera;
 
     private Rigidbody rb;
@@ -36,49 +41,41 @@ public class PlayerMove : MonoBehaviour
 
         if (mainCamera != null)
         {
-            cameraAngle.x += Input.GetAxis("Mouse X") * cameraRotationSpeed * Time.deltaTime;
-            cameraAngle.y -= Input.GetAxis("Mouse Y") * cameraRotationSpeed * Time.deltaTime;
+            cameraAngle.x += Input.GetAxis("Mouse X") * cameraSensitivity.x;
+            cameraAngle.y -= Input.GetAxis("Mouse Y") * cameraSensitivity.y;
             cameraAngle.y = Mathf.Clamp(cameraAngle.y, cameraPitchMin, cameraPitchMax);
 
             Quaternion rotation = Quaternion.Euler(cameraAngle.y, cameraAngle.x, 0f);
-            Vector3 cameraForward = rotation * Vector3.forward;
-            Vector3 cameraRight = rotation * Vector3.right;
+            Quaternion yawRotation = Quaternion.Euler(0f, cameraAngle.x, 0f);
+            Vector3 cameraForward = yawRotation * Vector3.forward;
+            Vector3 cameraRight = yawRotation * Vector3.right;
 
             Vector3 movement = (cameraForward * moveZ + cameraRight * moveX).normalized;
-            movement.y = 0f;
 
-            // アニメーション用
+            // ?ｿｽA?ｿｽj?ｿｽ?ｿｽ?ｿｽ[?ｿｽV?ｿｽ?ｿｽ?ｿｽ?ｿｽ?ｿｽp
             if (animator != null)
             {
                 animator.SetFloat("Speed", movement.magnitude);
             }
 
-            if (movement.sqrMagnitude > 0.01f)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(movement, Vector3.up);
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation,
-                    targetRotation,
-                    rotateSpeed * Time.deltaTime
-                );
-            }
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                yawRotation,
+                rotateSpeed * Time.deltaTime
+            );
 
             rb.MovePosition(
                 transform.position + movement * moveSpeed * Time.deltaTime
             );
 
-            Vector3 desiredPosition =
-                transform.position +
-                rotation * new Vector3(0f, cameraHeight, -cameraDistance);
-
-            mainCamera.transform.position = desiredPosition;
+            mainCamera.transform.position = transform.position + Vector3.up * cameraHeight;
             mainCamera.transform.rotation = rotation;
         }
         else
         {
             Vector3 movement = new Vector3(moveX, 0f, moveZ);
 
-            // アニメーション用
+            // ?ｿｽA?ｿｽj?ｿｽ?ｿｽ?ｿｽ[?ｿｽV?ｿｽ?ｿｽ?ｿｽ?ｿｽ?ｿｽp
             if (animator != null)
             {
                 animator.SetFloat("Speed", movement.magnitude);
@@ -100,5 +97,11 @@ public class PlayerMove : MonoBehaviour
                 transform.position + movement * moveSpeed * Time.deltaTime
             );
         }
+    }
+
+
+    public void SetCameraSensitivity(float sensitivity)
+    {
+        cameraSensitivity = new Vector2(sensitivity, sensitivity);
     }
 }

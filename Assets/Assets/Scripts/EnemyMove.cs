@@ -2,18 +2,25 @@ using UnityEngine;
 
 public class EnemyMove : MonoBehaviour, IDamage
 {
+    [Header("�ړ��ݒ�")]
     [SerializeField] private float moveSpeed = 2f;
+    [SerializeField, Min(0f)] private float stoppingDistance = 1.5f;
     [SerializeField] private string targetTag = "Player";
     [SerializeField] private SphereCollider searchZone;
+
+    [Header("�̗͐ݒ�")]
     [SerializeField] private float maxHealth = 100f;
     private float currentHealth;
 
     private Transform target;
     private EnemyAttack enemyAttack;
+    [Header("敵のアニメーション")]
+    private Animator animator;
 
     private void Awake()
     {
         enemyAttack = GetComponent<EnemyAttack>();
+        animator = GetComponentInChildren<Animator>();
     }
 
     private void Start()
@@ -27,7 +34,7 @@ public class EnemyMove : MonoBehaviour, IDamage
     public void TakeDamage(float damageAmount)
     {
         currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} に {damageAmount} ダメージ！ 残りHP: {currentHealth}");
+        Debug.Log($"{gameObject.name} に {damageAmount} ダメージ?�? 残りHP: {currentHealth}");
 
         if (currentHealth <= 0f)
         {
@@ -65,12 +72,41 @@ public class EnemyMove : MonoBehaviour, IDamage
             transform.rotation = Quaternion.LookRotation(moveDirection);
         }
 
+        // 攻撃範囲内なら移動しない
         if (enemyAttack != null && enemyAttack.IsTargetInRange(target))
-            return;
+        {
+            if (animator != null)
+                animator.SetBool("IsMoving", false);
 
-        float stoppingDistance = enemyAttack != null ? enemyAttack.AttackRange : 0f;
+            return;
+        }
+
         float distance = moveDirection.magnitude;
-        float moveDistance = Mathf.Min(moveSpeed * Time.deltaTime, Mathf.Max(0f, distance - stoppingDistance));
-        transform.position += moveDirection.normalized * moveDistance;
+
+        float moveDistance = Mathf.Min(
+            moveSpeed * Time.deltaTime,
+            Mathf.Max(0f, distance - stoppingDistance)
+        );
+
+        if (moveDistance > 0.001f)
+        {
+            transform.position += moveDirection.normalized * moveDistance;
+
+            if (animator != null)
+                animator.SetBool("IsMoving", true);
+        }
+        else if(moveDistance <= 0.001 || !enemyAttack.IsTargetInRange(target))
+        {
+            if (animator != null)
+                animator.SetBool("IsMoving", false);
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if(other.CompareTag(targetTag) && animator != null)
+        {
+            animator.SetBool("IsMoving", false);
+        }
     }
 }

@@ -4,6 +4,7 @@ public class EnemyHealth : MonoBehaviour, IDamage
 {
     [SerializeField] private float maxHealth = 100f;
     private float currentHealth;
+    public int experimentPoint = 0;
 
     private void Start()
     {
@@ -13,7 +14,7 @@ public class EnemyHealth : MonoBehaviour, IDamage
     public void TakeDamage(float damageAmount)
     {
         currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} ‚É {damageAmount} ƒ_ƒ[ƒWI c‚èHP: {currentHealth}");
+        Debug.Log($"{gameObject.name} ï¿½ï¿½ {damageAmount} ï¿½_ï¿½ï¿½ï¿½[ï¿½Wï¿½I ï¿½cï¿½ï¿½HP: {currentHealth}");
 
         if (currentHealth <= 0f)
         {
