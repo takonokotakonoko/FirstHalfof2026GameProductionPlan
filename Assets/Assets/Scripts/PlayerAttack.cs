@@ -130,6 +130,18 @@ public class PlayerAttack : MonoBehaviour
     private float skillReadyTime;
     private bool isAttackAnimating;
     private PlayerHealth playerHealth;
+    private float normalDamageBonus;
+    private float skillDamageBonus;
+    private float skillStartupReduction;
+    private float skillRecoveryReduction;
+    private float skillCooldownReduction;
+    private Animator activeAttackAnimator;
+    private float activeAnimatorBaseSpeed;
+
+    public bool CanReduceSkillStartup => CanReduceSkillStartupUpTo(0.9f);
+    public bool CanReduceSkillRecovery => CanReduceSkillRecoveryUpTo(0.9f);
+    public bool CanReduceSkillCooldown => CanReduceSkillCooldownUpTo(0.5f);
+
     [Header("武器ごとのアニメーション")]
     [SerializeField] private List<WeaponAnimatorProfile> weaponAnimators = new List<WeaponAnimatorProfile>();
 
@@ -235,6 +247,9 @@ public class PlayerAttack : MonoBehaviour
     {
         UpdateCooldownDisplay();
 
+        if (Time.timeScale == 0f)
+            return;
+
         if (isAttackAnimating)
             return;
 
@@ -292,11 +307,11 @@ public class PlayerAttack : MonoBehaviour
 
         if (attackMode == AttackMode.Normal)
         {
-            normalReadyTime = Time.time + profile.cooldown;
+            normalReadyTime = Time.time + GetEffectiveCooldown(profile, attackMode);
         }
         else
         {
-            skillReadyTime = Time.time + profile.cooldown;
+            skillReadyTime = Time.time + GetEffectiveCooldown(profile, attackMode);
         }
 
         UpdateCooldownDisplay();
@@ -305,6 +320,7 @@ public class PlayerAttack : MonoBehaviour
 
     public void OnAttackAnimationFinished()
     {
+        RestoreAttackAnimatorSpeed();
         isAttackAnimating = false;
     }
 
@@ -317,6 +333,9 @@ public class PlayerAttack : MonoBehaviour
 
         if (profile == null)
             return;
+
+        if (attackMode == AttackMode.Skill)
+            SetAttackAnimatorSpeed(skillRecoveryReduction);
 
         PlayAttackVisual();
         ApplyAttackDamage(profile);
@@ -341,6 +360,9 @@ public class PlayerAttack : MonoBehaviour
         float finalDamage = playerHealth != null
             ? profile.damage * playerHealth.StatMultiplier
             : profile.damage;
+        finalDamage *= profile.mode == AttackMode.Normal
+            ? 1f + normalDamageBonus
+            : 1f + skillDamageBonus;
         int damageCount = 0;
         foreach (Collider hit in hitColliders)
         {
@@ -364,8 +386,19 @@ public class PlayerAttack : MonoBehaviour
 
         UpdateCooldownLabel(normal_Cooldown, normalReadyTime);
         UpdateCooldownLabel(skill_Cooldown, skillReadyTime);
-        UpdateCooldownGauge(normalCooldownGauge, normalReadyTime, normalAttack);
-        UpdateCooldownGauge(skillCooldownGauge, skillReadyTime, skillAttack);
+        UpdateCooldownGauge(normalCooldownGauge, normalReadyTime, normalAttack,
+            GetEffectiveCooldown(normalAttack, AttackMode.Normal));
+        UpdateCooldownGauge(skillCooldownGauge, skillReadyTime, skillAttack,
+            GetEffectiveCooldown(skillAttack, AttackMode.Skill));
+    }
+
+    private float GetEffectiveCooldown(AttackProfile attack, AttackMode mode)
+    {
+        if (attack == null)
+            return 0f;
+
+        float reduction = mode == AttackMode.Skill ? skillCooldownReduction : 0f;
+        return attack.cooldown * (1f - reduction);
     }
 
     private void UpdateCooldownLabel(TextMeshProUGUI label, float readyTime)
@@ -391,19 +424,19 @@ public class PlayerAttack : MonoBehaviour
         gauge.fillAmount = 1f;
     }
 
-    private void UpdateCooldownGauge(Image gauge, float readyTime, AttackProfile attack)
+    private void UpdateCooldownGauge(Image gauge, float readyTime, AttackProfile attack, float effectiveCooldown)
     {
         if (gauge == null)
             return;
 
-        if (attack == null || attack.cooldown <= 0f)
+        if (attack == null || effectiveCooldown <= 0f)
         {
             gauge.fillAmount = 1f;
             return;
         }
 
         float remainingTime = Mathf.Max(0f, readyTime - Time.time);
-        gauge.fillAmount = Mathf.Clamp01(1f - remainingTime / attack.cooldown);
+        gauge.fillAmount = Mathf.Clamp01(1f - remainingTime / effectiveCooldown);
     }
 
     private void PlayWeaponAnimation(AttackMode attackMode)
@@ -425,12 +458,121 @@ public class PlayerAttack : MonoBehaviour
         if (animatorProfile == null || animatorProfile.animator == null)
             return;
 
+        activeAttackAnimator = animatorProfile.animator;
+        activeAnimatorBaseSpeed = activeAttackAnimator.speed;
+        SetAttackAnimatorSpeed(attackMode == AttackMode.Skill ? skillStartupReduction : 0f);
+
         string triggerName = attackMode == AttackMode.Normal
             ? animatorProfile.normalTrigger
             : animatorProfile.skillTrigger;
 
         if (!string.IsNullOrEmpty(triggerName))
             animatorProfile.animator.SetTrigger(triggerName);
+    }
+
+    private void SetAttackAnimatorSpeed(float durationReduction)
+    {
+        if (activeAttackAnimator == null)
+            return;
+
+        activeAttackAnimator.speed = activeAnimatorBaseSpeed / Mathf.Max(0.1f, 1f - durationReduction);
+    }
+
+    private void RestoreAttackAnimatorSpeed()
+    {
+        if (activeAttackAnimator != null)
+            activeAttackAnimator.speed = activeAnimatorBaseSpeed;
+
+        activeAttackAnimator = null;
+    }
+
+    public void IncreaseNormalDamage(float amount)
+    {
+        IncreaseNormalDamage(amount, 0f, float.MaxValue);
+    }
+
+    public bool CanIncreaseNormalDamage(float maximumBonus)
+    {
+        return normalDamageBonus < maximumBonus;
+    }
+
+    public void IncreaseNormalDamage(float amount, float minimumBonus, float maximumBonus)
+    {
+        normalDamageBonus = ApplyBonusIncrease(normalDamageBonus, amount, minimumBonus, maximumBonus);
+    }
+
+    public void IncreaseSkillDamage(float amount)
+    {
+        IncreaseSkillDamage(amount, 0f, float.MaxValue);
+    }
+
+    public bool CanIncreaseSkillDamage(float maximumBonus)
+    {
+        return skillDamageBonus < maximumBonus;
+    }
+
+    public void IncreaseSkillDamage(float amount, float minimumBonus, float maximumBonus)
+    {
+        skillDamageBonus = ApplyBonusIncrease(skillDamageBonus, amount, minimumBonus, maximumBonus);
+    }
+
+    public void ReduceSkillStartup(float amount, float maximumReduction)
+    {
+        ReduceSkillStartup(amount, 0f, maximumReduction);
+    }
+
+    public bool CanReduceSkillStartupUpTo(float maximumReduction)
+    {
+        return skillStartupReduction < maximumReduction;
+    }
+
+    public void ReduceSkillStartup(float amount, float minimumReduction, float maximumReduction)
+    {
+        skillStartupReduction = ApplyBonusIncrease(
+            skillStartupReduction, amount, minimumReduction, maximumReduction);
+    }
+
+    public void ReduceSkillRecovery(float amount, float maximumReduction)
+    {
+        ReduceSkillRecovery(amount, 0f, maximumReduction);
+    }
+
+    public bool CanReduceSkillRecoveryUpTo(float maximumReduction)
+    {
+        return skillRecoveryReduction < maximumReduction;
+    }
+
+    public void ReduceSkillRecovery(float amount, float minimumReduction, float maximumReduction)
+    {
+        skillRecoveryReduction = ApplyBonusIncrease(
+            skillRecoveryReduction, amount, minimumReduction, maximumReduction);
+    }
+
+    public void ReduceSkillCooldown(float amount, float maximumReduction)
+    {
+        ReduceSkillCooldown(amount, 0f, maximumReduction);
+    }
+
+    public bool CanReduceSkillCooldownUpTo(float maximumReduction)
+    {
+        return skillCooldownReduction < maximumReduction;
+    }
+
+    public void ReduceSkillCooldown(float amount, float minimumReduction, float maximumReduction)
+    {
+        skillCooldownReduction = ApplyBonusIncrease(
+            skillCooldownReduction, amount, minimumReduction, maximumReduction);
+    }
+
+    private static float ApplyBonusIncrease(float currentValue, float amount, float minimumValue, float maximumValue)
+    {
+        if (amount <= 0f || minimumValue < 0f || maximumValue < minimumValue)
+        {
+            Debug.LogWarning("PlayerAttack: 増加量と最小値・最大値を確認してください。");
+            return currentValue;
+        }
+
+        return Mathf.Clamp(currentValue + amount, minimumValue, maximumValue);
     }
 
     private void PlayAttackVisual()

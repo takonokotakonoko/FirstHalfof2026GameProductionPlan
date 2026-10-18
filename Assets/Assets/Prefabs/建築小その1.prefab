@@ -46,12 +46,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 674204c837d7cdc48b811bc01657f9c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingCollapse
-  explosionForce: 100
-  explosionRadius: 5
-  upwardModifier: 0.2
+  explosionForce: 30
+  explosionRadius: 3
+  upwardModifier: 10
   buildingBody: {fileID: 6402251391951141308}
   buildingCollider: {fileID: 6920803319863540044}
-  debrisLifetime: 3
+  debrisLifetime: 5
 --- !u!114 &7785438976416671491
 MonoBehaviour:
   m_ObjectHideFlags: 0

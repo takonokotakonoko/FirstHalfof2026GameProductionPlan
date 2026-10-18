@@ -602,6 +602,66 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PointManager
   quotaPoint: 2
+  maxHealthBuff:
+    enabled: 1
+    unlockAfterSeconds: 0
+    effectAmount: 20
+    minimumValue: 1
+    maximumValue: 9999
+  moveSpeedBuff:
+    enabled: 1
+    unlockAfterSeconds: 0
+    effectAmount: 0.1
+    minimumValue: 0.1
+    maximumValue: 4
+  normalDamageBuff:
+    enabled: 1
+    unlockAfterSeconds: 0
+    effectAmount: 0.1
+    minimumValue: 0
+    maximumValue: 100
+  experienceRequirementBuff:
+    enabled: 1
+    unlockAfterSeconds: 2
+    effectAmount: 1
+    minimumValue: 2
+    maximumValue: 999999
+  slowerEnemySpawnsBuff:
+    enabled: 1
+    unlockAfterSeconds: 2
+    effectAmount: 1
+    minimumValue: 1
+    maximumValue: 60
+  fasterEnemySpawnsBuff:
+    enabled: 1
+    unlockAfterSeconds: 2
+    effectAmount: -1
+    minimumValue: 1
+    maximumValue: 60
+  skillDamageBuff:
+    enabled: 1
+    unlockAfterSeconds: 300
+    effectAmount: 0.1
+    minimumValue: 0
+    maximumValue: 100
+  skillStartupBuff:
+    enabled: 1
+    unlockAfterSeconds: 300
+    effectAmount: 0.1
+    minimumValue: 0
+    maximumValue: 0.9
+  skillRecoveryBuff:
+    enabled: 1
+    unlockAfterSeconds: 300
+    effectAmount: 0.1
+    minimumValue: 0
+    maximumValue: 0.9
+  skillCooldownBuff:
+    enabled: 1
+    unlockAfterSeconds: 300
+    effectAmount: 0.05
+    minimumValue: 0
+    maximumValue: 0.5
 --- !u!4 &549839579
 Transform:
   m_ObjectHideFlags: 0
@@ -1031,6 +1091,7 @@ RectTransform:
   - {fileID: 64109339}
   - {fileID: 1784455970}
   - {fileID: 149708346}
+  - {fileID: 706895216}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1177,6 +1238,85 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &706895215
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 706895216}
+  - component: {fileID: 706895218}
+  - component: {fileID: 706895217}
+  m_Layer: 5
+  m_Name: LevelText
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &706895216
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706895215}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 649951903}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 150, y: 30}
+  m_SizeDelta: {x: 300, y: 60}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &706895217
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706895215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
+  m_Material: {fileID: 0}
+  m_Color: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_FontData:
+    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_FontSize: 36
+    m_FontStyle: 1
+    m_BestFit: 0
+    m_MinSize: 3
+    m_MaxSize: 40
+    m_Alignment: 0
+    m_AlignByGeometry: 0
+    m_RichText: 1
+    m_HorizontalOverflow: 0
+    m_VerticalOverflow: 0
+    m_LineSpacing: 1
+  m_Text: New Text
+--- !u!222 &706895218
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 706895215}
+  m_CullTransparentMesh: 1
 --- !u!1 &961514390
 GameObject:
   m_ObjectHideFlags: 0
@@ -1474,6 +1614,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LevelManager
   totalExp: 0
   expToNextLv: 1
+  playerLevelText: {fileID: 706895217}
 --- !u!1 &1336659820
 GameObject:
   m_ObjectHideFlags: 0
@@ -1888,6 +2029,10 @@ PrefabInstance:
       value: Player 1
       objectReference: {fileID: 0}
     - target: {fileID: 6668820696489359903, guid: 5c50ed4a540c91c45a1ccec0df88992a, type: 3}
+      propertyPath: moveSpeed
+      value: 3.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6668820696489359903, guid: 5c50ed4a540c91c45a1ccec0df88992a, type: 3}
       propertyPath: mainCamera
       value: 
       objectReference: {fileID: 590200932}
@@ -1977,7 +2122,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1784455970
 RectTransform:
   m_ObjectHideFlags: 0

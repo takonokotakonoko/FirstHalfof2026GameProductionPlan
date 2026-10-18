@@ -45,7 +45,11 @@ public class EnemySpawnManager : MonoBehaviour
     private float updateTimer;
     private float spawnTimer;
     private float elapsedSeconds;
+    private float spawnIntervalAdjustment;
     private EnemyPhaseSettings.Phase currentPhase;
+
+    public bool CanDecreaseSpawnInterval =>
+        CanAdjustSpawnInterval(-1f, 1f, float.MaxValue);
 
     private readonly List<ActiveEnemy> activeEnemies = new List<ActiveEnemy>();
 
@@ -96,9 +100,53 @@ public class EnemySpawnManager : MonoBehaviour
         spawnTimer -= Time.deltaTime;
         if (currentPhase != null && spawnTimer <= 0f)
         {
-            spawnTimer = currentPhase.spawnIntervalSeconds;
+            spawnTimer = GetCurrentSpawnInterval();
             TrySpawnEnemy();
         }
+    }
+
+    public void AdjustSpawnInterval(float adjustment)
+    {
+        AdjustSpawnInterval(adjustment, 1f, float.MaxValue);
+    }
+
+    public bool CanAdjustSpawnInterval(float adjustment, float minimumInterval, float maximumInterval)
+    {
+        if (currentPhase == null
+            || adjustment == 0f
+            || minimumInterval <= 0f
+            || maximumInterval < minimumInterval)
+        {
+            return false;
+        }
+
+        float currentInterval = GetCurrentSpawnInterval();
+        float targetInterval = Mathf.Clamp(currentInterval + adjustment, minimumInterval, maximumInterval);
+        return !Mathf.Approximately(currentInterval, targetInterval);
+    }
+
+    public void AdjustSpawnInterval(float adjustment, float minimumInterval, float maximumInterval)
+    {
+        if (currentPhase == null
+            || adjustment == 0f
+            || minimumInterval <= 0f
+            || maximumInterval < minimumInterval)
+        {
+            Debug.LogWarning("EnemySpawnManager: 出現間隔の増減量と最小値・最大値を確認してください。", this);
+            return;
+        }
+
+        float currentInterval = GetCurrentSpawnInterval();
+        float targetInterval = Mathf.Clamp(currentInterval + adjustment, minimumInterval, maximumInterval);
+        spawnIntervalAdjustment = targetInterval - currentPhase.spawnIntervalSeconds;
+        spawnTimer = Mathf.Min(spawnTimer, targetInterval);
+    }
+
+    private float GetCurrentSpawnInterval()
+    {
+        return currentPhase == null
+            ? 1f
+            : Mathf.Max(1f, currentPhase.spawnIntervalSeconds + spawnIntervalAdjustment);
     }
 
     private void RefreshPhase()
