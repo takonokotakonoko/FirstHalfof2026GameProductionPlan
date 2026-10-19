@@ -21,11 +21,13 @@ public class EnemySpawnManager : MonoBehaviour
     [SerializeField] [JpLabel("生成Y座標")] private float spawnPositionY = 0.85f;
 
     [Header("Spawn Validation")]
-    [Tooltip("生成候補位置が既存のColliderと重なっていないか判定する球の半径。敵の実際のサイズに近い値にする（未確定・仮値）。")]
+    [Tooltip("生成可能なセル（道路・横断歩道・歩道・信号機セル）の判定に使う。未設定なら自動で探す。シーンに無い場合はセル判定を行わない（テストシーン用）。")]
+    [SerializeField] [JpLabel("チャンクマネージャー")] private ChunkManager chunkManager;
+    [Tooltip("生成候補位置が既存のColliderと重なっていないか判定する球の半径。地面タイルとの接触は重なりとみなさない。敵の実際のサイズに近い値にする（未確定・仮値）。")]
     [SerializeField] [JpLabel("重なり判定半径")] private float spawnOverlapCheckRadius = 0.6f;
     [Tooltip("重ならない位置が見つかるまで候補をやり直す最大回数。すべて失敗した場合はその回の生成を見送る。")]
     [SerializeField] [JpLabel("生成位置 試行回数上限")] private int maxSpawnPositionAttempts = 10;
-    [Tooltip("デバッグ用。trueにすると、重ならない位置が見つからなかった場合でも最後に試した候補位置へ強制的に生成する（埋まっている場所を目視で確認するため）。本来の（見送る）挙動を確認する場合はfalseにする。")]
+    [Tooltip("デバッグ用。trueにすると、重ならない位置が見つからなかった場合でも最後に試した候補位置へ強制的に生成する（埋まっている場所を目視で確認するため）。ただし生成可能なセル（道路等）の判定を通った候補に限り、敷地の上には強制生成しない。本来の（見送る）挙動を確認する場合はfalseにする。")]
     [SerializeField] [JpLabel("重なり時に強制生成（デバッグ）")] private bool debugForceSpawnOnOverlapFailure = true;
 
     [Header("Despawn")]
@@ -48,10 +50,16 @@ public class EnemySpawnManager : MonoBehaviour
     private EnemyPhaseSettings.Phase currentPhase;
 
     private readonly List<ActiveEnemy> activeEnemies = new List<ActiveEnemy>();
+    private readonly Collider[] overlapResults = new Collider[16];
 
     private void Awake()
     {
         pool = new EnemyPool(transform);
+
+        if (chunkManager == null)
+        {
+            chunkManager = FindFirstObjectByType<ChunkManager>();
+        }
     }
 
     private void Start()
@@ -64,6 +72,11 @@ public class EnemySpawnManager : MonoBehaviour
         else
         {
             Debug.LogWarning("EnemySpawnManager: Playerタグのオブジェクトが見つかりません。敵生成は動作しません。");
+        }
+
+        if (chunkManager == null)
+        {
+            Debug.LogWarning("EnemySpawnManager: ChunkManagerが見つかりません。道路上かどうかのセル判定を行わずに生成します。");
         }
 
         if (phaseSettings == null)
@@ -170,9 +183,9 @@ public class EnemySpawnManager : MonoBehaviour
 
         if (!TryFindValidSpawnPosition(out Vector3 spawnPosition))
         {
-            // 候補位置がすべて建物などと重なっていた。無理に埋め込まず、この回の生成を見送る
+            // 候補位置がすべて敷地の上か、何かと重なっていた。無理に埋め込まず、この回の生成を見送る
             // （次のspawnTimer周期でまた試す）。
-            Debug.Log($"EnemySpawnManager: 生成位置が見つからず今回は見送り（{maxSpawnPositionAttempts}回試行、すべて何かと重なっていた）");
+            Debug.Log($"EnemySpawnManager: 生成位置が見つからず今回は見送り（{maxSpawnPositionAttempts}回試行、すべて敷地の上か何かと重なっていた）");
             return;
         }
 
@@ -186,29 +199,75 @@ public class EnemySpawnManager : MonoBehaviour
     // 位置が見つかればtrueを返す。マインクラフトの自然湧きが「候補位置が塞がっていたら
     // 別の候補を試し、それでもダメなら今回は湧かせない」方式を採るのと同じ考え方。
     // トリガーColliderは実体のある障害物ではないため判定から除外する。
+    // 判定は2段階：①生成データ上で敷地（建物の足元）でないか、②Colliderと重なっていないか。
+    // ①は物理判定ではColliderの隙間などを見逃すため、チャンクの生成データ（landMap等）で直接確かめる。
     private bool TryFindValidSpawnPosition(out Vector3 position)
     {
-        Vector3 lastCandidate = default;
+        Vector3 lastOverlappingCandidate = default;
+        bool hasOverlappingCandidate = false;
         for (int i = 0; i < maxSpawnPositionAttempts; i++)
         {
             Vector3 candidate = GetRandomSpawnPosition();
-            lastCandidate = candidate;
-            if (!Physics.CheckSphere(candidate, spawnOverlapCheckRadius, ~0, QueryTriggerInteraction.Ignore))
+            if (!IsSpawnableCell(candidate))
+            {
+                continue;
+            }
+
+            if (!IsOverlappingObstacle(candidate))
             {
                 position = candidate;
                 return true;
             }
+
+            lastOverlappingCandidate = candidate;
+            hasOverlappingCandidate = true;
         }
 
-        if (debugForceSpawnOnOverlapFailure)
+        // 強制生成は①を通った（敷地ではない）候補に限る。敷地の上に出してしまうと、このデバッグ機能で
+        // 確認したい「Colliderとの重なり」とは別の不具合（建物の中への生成）を再現してしまうため。
+        if (debugForceSpawnOnOverlapFailure && hasOverlappingCandidate)
         {
             // デバッグ用：本来は見送るべきだが、埋まっている様子を目視確認できるようあえて生成する。
-            Debug.LogWarning($"EnemySpawnManager: 生成位置がColliderと重なっていましたが、デバッグ用フラグ（debugForceSpawnOnOverlapFailure）により強制的に生成しました（位置: {lastCandidate}）");
-            position = lastCandidate;
+            Debug.LogWarning($"EnemySpawnManager: 生成位置がColliderと重なっていましたが、デバッグ用フラグ（debugForceSpawnOnOverlapFailure）により強制的に生成しました（位置: {lastOverlappingCandidate}）");
+            position = lastOverlappingCandidate;
             return true;
         }
 
         position = default;
+        return false;
+    }
+
+    // 候補位置が道路・横断歩道・歩道・信号機セルの上ならtrue。読み込み済みでないチャンク（生成中を含む）の上は
+    // 地面の有無も分からないためfalseにする。ChunkManagerが無いシーンでは判定を行わない。
+    private bool IsSpawnableCell(Vector3 candidate)
+    {
+        if (chunkManager == null)
+        {
+            return true;
+        }
+
+        Vector2Int coord = chunkManager.GetChunkCoordForWorldPosition(candidate);
+        return chunkManager.TryGetLoadedChunk(coord, out GenerateClusterBuildings chunk)
+            && chunk.IsEnemySpawnableAtWorldPosition(candidate);
+    }
+
+    // 地面タイルに接しているだけの場合は重なりとみなさない（歩道の段差などで判定球が地面に触れても見送らない）。
+    // 建物・信号機・他の敵などは従来どおり障害物として扱う。
+    private bool IsOverlappingObstacle(Vector3 candidate)
+    {
+        int hitCount = Physics.OverlapSphereNonAlloc(candidate, spawnOverlapCheckRadius, overlapResults, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hit = overlapResults[i];
+            GenerateClusterBuildings chunk = hit.GetComponentInParent<GenerateClusterBuildings>();
+            if (chunk != null && chunk.IsWalkableSurfaceCollider(hit))
+            {
+                continue;
+            }
+
+            return true;
+        }
+
         return false;
     }
 
