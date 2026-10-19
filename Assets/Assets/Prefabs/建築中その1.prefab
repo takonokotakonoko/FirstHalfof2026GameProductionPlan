@@ -61,12 +61,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 674204c837d7cdc48b811bc01657f9c3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingCollapse
-  explosionForce: 100
-  explosionRadius: 5
-  upwardModifier: 0.2
+  explosionForce: 30
+  explosionRadius: 3
+  upwardModifier: 10
   buildingBody: {fileID: 8200025138044482705}
   buildingCollider: {fileID: 5857263170637728791}
-  debrisLifetime: 3
+  debrisLifetime: 5
 --- !u!1001 &4860712314177556062
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -173,7 +173,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.054250173, y: 0.022671228, z: 0.038067874}
   m_Center: {x: 0.002067537, y: 0.008045307, z: 0.0027470435}
@@ -226,7 +226,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.02472255, y: 0.06043612, z: 0.054796513}
   m_Center: {x: -0.006799877, y: 0.006099578, z: -0.00046699765}
@@ -279,7 +279,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.0609961, y: 0.060528066, z: 0.05448596}
   m_Center: {x: 0.011130488, y: 0.010534683, z: 0.00068921584}
@@ -337,7 +337,7 @@ BoxCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_Size: {x: 0.019967828, y: 0.060999986, z: 0.071609885}
   m_Center: {x: -0.0073585934, y: 0.0021303263, z: -0.0015484334}

@@ -1,16 +1,12 @@
 using UnityEngine;
 
-public class EnemyMove : MonoBehaviour, IDamage
+public class EnemyMove : MonoBehaviour
 {
     [Header("�ړ��ݒ�")]
     [SerializeField] private float moveSpeed = 2f;
     [SerializeField, Min(0f)] private float stoppingDistance = 1.5f;
     [SerializeField] private string targetTag = "Player";
     [SerializeField] private SphereCollider searchZone;
-
-    [Header("�̗͐ݒ�")]
-    [SerializeField] private float maxHealth = 100f;
-    private float currentHealth;
 
     private Transform target;
     private EnemyAttack enemyAttack;
@@ -25,21 +21,9 @@ public class EnemyMove : MonoBehaviour, IDamage
 
     private void Start()
     {
-        currentHealth = maxHealth;
         GameObject targetObject = GameObject.FindWithTag(targetTag);
         if (targetObject != null)
             target = targetObject.transform;
-    }
-
-    public void TakeDamage(float damageAmount)
-    {
-        currentHealth -= damageAmount;
-        Debug.Log($"{gameObject.name} に {damageAmount} ダメージ?�? 残りHP: {currentHealth}");
-
-        if (currentHealth <= 0f)
-        {
-            Destroy(gameObject);
-        }
     }
 
     private void Update()

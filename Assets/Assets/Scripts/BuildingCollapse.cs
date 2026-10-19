@@ -13,6 +13,7 @@ public class BuildingCollapse : MonoBehaviour
     [SerializeField] private float debrisLifetime = 3f;
 
     private bool collapsed = false;
+    private BoxCollider[] debrisColliders;
 
     public void Collapse()
     {
@@ -32,6 +33,9 @@ public class BuildingCollapse : MonoBehaviour
         {
             buildingBody.SetActive(false);
         }
+
+        debrisColliders =
+            GetComponentsInChildren<BoxCollider>(true);
 
         // 子のRigidbodyを取得
         Rigidbody[] rigidbodies =
@@ -53,8 +57,21 @@ public class BuildingCollapse : MonoBehaviour
             Destroy(rb.gameObject, debrisLifetime);
         }
 
+        Invoke(nameof(DisableDebrisColliders), 0.1f);
+
         // 破片が消えた後、建物全体を削除
         Invoke(nameof(DestroyBuildingInstance), debrisLifetime);
+    }
+
+    private void DisableDebrisColliders()
+    {
+        foreach (BoxCollider debrisCollider in debrisColliders)
+        {
+            if (debrisCollider != null)
+            {
+                debrisCollider.enabled = false;
+            }
+        }
     }
 
     private void DestroyBuildingInstance()

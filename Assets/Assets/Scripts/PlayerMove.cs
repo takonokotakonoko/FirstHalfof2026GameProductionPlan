@@ -2,24 +2,26 @@ using UnityEngine;
 
 public class PlayerMove : MonoBehaviour
 {
-    [Header("ƒvƒŒƒCƒ„[‚ÌˆÚ“®‘¬“x")]
+    [Header("ï¿½vï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½[ï¿½ÌˆÚ“ï¿½ï¿½ï¿½ï¿½x")]
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float rotateSpeed = 10f;
 
-    [Header("ˆêlÌŽ‹“_ƒJƒƒ‰")]
+    [Header("ï¿½ï¿½lï¿½ÌŽï¿½ï¿½_ï¿½Jï¿½ï¿½ï¿½ï¿½")]
     [SerializeField] private float cameraHeight = 1.6f;
     [SerializeField] private float cameraPitchMin = -80f;
     [SerializeField] private float cameraPitchMax = 80f;
 
-    [Header("ƒJƒƒ‰‚ÌŠ´“x")]
+    [Header("ï¿½Jï¿½ï¿½ï¿½ï¿½ï¿½ÌŠï¿½ï¿½x")]
     [SerializeField] private Vector2 cameraSensitivity = new Vector2(2f, 2f);
     [SerializeField] private Vector2 cameraAngle = Vector2.zero;
 
-    [Header("ˆêlÌƒJƒƒ‰")]
+    [Header("ï¿½ï¿½lï¿½ÌƒJï¿½ï¿½ï¿½ï¿½")]
     public Camera mainCamera;
 
     private Rigidbody rb;
     private Animator animator;
+
+    public bool CanIncreaseMoveSpeed => CanIncreaseMoveSpeedUpTo(4f);
 
     private void Start()
     {
@@ -31,7 +33,31 @@ public class PlayerMove : MonoBehaviour
 
     private void Update()
     {
+        if (Time.timeScale == 0f)
+            return;
+
         MoveAndCamera();
+    }
+
+    public bool CanIncreaseMoveSpeedUpTo(float maximumSpeed)
+    {
+        return moveSpeed < maximumSpeed;
+    }
+
+    public void IncreaseMoveSpeed(float percentage, float maximumSpeed)
+    {
+        IncreaseMoveSpeed(percentage, 0.1f, maximumSpeed);
+    }
+
+    public void IncreaseMoveSpeed(float percentage, float minimumSpeed, float maximumSpeed)
+    {
+        if (percentage <= 0f || minimumSpeed <= 0f || maximumSpeed < minimumSpeed)
+        {
+            Debug.LogWarning("PlayerMove: å¢—åŠ çŽ‡ã¨é€Ÿåº¦ã®æœ€å°å€¤ãƒ»æœ€å¤§å€¤ã‚’ç¢ºèªã—ã¦ãã ã•ã„ã€‚", this);
+            return;
+        }
+
+        moveSpeed = Mathf.Clamp(moveSpeed * (1f + percentage), minimumSpeed, maximumSpeed);
     }
 
     private void MoveAndCamera()
@@ -52,7 +78,7 @@ public class PlayerMove : MonoBehaviour
 
             Vector3 movement = (cameraForward * moveZ + cameraRight * moveX).normalized;
 
-            // ?¿½A?¿½j?¿½?¿½?¿½[?¿½V?¿½?¿½?¿½?¿½?¿½p
+            // ?ï¿½ï¿½A?ï¿½ï¿½j?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½[?ï¿½ï¿½V?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½p
             if (animator != null)
             {
                 animator.SetFloat("Speed", movement.magnitude);
@@ -75,7 +101,7 @@ public class PlayerMove : MonoBehaviour
         {
             Vector3 movement = new Vector3(moveX, 0f, moveZ);
 
-            // ?¿½A?¿½j?¿½?¿½?¿½[?¿½V?¿½?¿½?¿½?¿½?¿½p
+            // ?ï¿½ï¿½A?ï¿½ï¿½j?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½[?ï¿½ï¿½V?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½p
             if (animator != null)
             {
                 animator.SetFloat("Speed", movement.magnitude);

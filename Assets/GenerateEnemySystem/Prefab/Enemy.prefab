@@ -175,6 +175,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   maxHealth: 100
+  experimentPoint: 2
 --- !u!1 &1587227544
 GameObject:
   m_ObjectHideFlags: 0
@@ -274,6 +275,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 25
+  playerHealth: {fileID: 0}
 --- !u!65 &1896452323
 BoxCollider:
   m_ObjectHideFlags: 0
