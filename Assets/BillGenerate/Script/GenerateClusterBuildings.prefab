@@ -44,8 +44,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 225e01801d61ca94787b9520986aa6d8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GenerateClusterBuildings
-  gridWidth: 200
-  gridHeight: 200
+  gridWidth: 25
+  gridHeight: 25
   cellWidth: 3
   cellHeight: 3
   roadGenerationMode: 2
