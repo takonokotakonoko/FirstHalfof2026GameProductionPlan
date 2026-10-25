@@ -240,6 +240,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyHealth
   maxHealth: 100
+  deathSound: {fileID: 8300000, guid: da50fc1699a09264b8ea9aefb087b527, type: 3}
+  deathSoundVolume: 1
   experimentPoint: 1
 --- !u!1 &6983359438894090969
 GameObject:

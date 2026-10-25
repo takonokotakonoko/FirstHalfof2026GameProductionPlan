@@ -13,12 +13,16 @@ public class AttackHitBox : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if(other.TryGetComponent<IDamage>(out var damageable))
+        if (DamageTargetFilter.IsBuilding(other.transform))
+            return;
+
+        IDamage damageable = other.GetComponentInParent<IDamage>();
+        if (damageable != null)
         {
             float finalDamage = playerHealth != null
                 ? damage * playerHealth.StatMultiplier
                 : damage;
             damageable.TakeDamage(finalDamage);
-        }   
+        }
     }
 }

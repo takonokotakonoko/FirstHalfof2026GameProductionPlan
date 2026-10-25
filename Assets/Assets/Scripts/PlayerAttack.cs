@@ -121,6 +121,11 @@ public class PlayerAttack : MonoBehaviour
     public TextMeshProUGUI normal_Cooldown;
     public TextMeshProUGUI skill_Cooldown;
 
+    [Header("クールダウン完了SE")]
+    [SerializeField] private AudioClip normalCooldownReadySound;
+    [SerializeField] private AudioClip skillCooldownReadySound;
+    [SerializeField, Range(0f, 1f)] private float cooldownReadySoundVolume = 1f;
+
     [Header("円形クールタイムゲージ")]
     [SerializeField] private Image normalCooldownGauge;
     [SerializeField] private Image skillCooldownGauge;
@@ -128,6 +133,11 @@ public class PlayerAttack : MonoBehaviour
     private Dictionary<WeaponType, WeaponProfile> weaponMap;
     private float normalReadyTime;
     private float skillReadyTime;
+    private bool normalCooldownActive;
+    private bool skillCooldownActive;
+    private bool warnedMissingNormalCooldownSound;
+    private bool warnedMissingSkillCooldownSound;
+    private AudioSource cooldownAudioSource;
     private bool isAttackAnimating;
     private PlayerHealth playerHealth;
     private float normalDamageBonus;
@@ -150,6 +160,13 @@ public class PlayerAttack : MonoBehaviour
         playerHealth = GetComponentInParent<PlayerHealth>();
         if (playerHealth == null)
             Debug.LogError("PlayerAttack requires a PlayerHealth component on this object or a parent.", this);
+
+        cooldownAudioSource = GetComponent<AudioSource>();
+        if (cooldownAudioSource == null)
+        {
+            cooldownAudioSource = gameObject.AddComponent<AudioSource>();
+            cooldownAudioSource.playOnAwake = false;
+        }
 
         EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
@@ -250,6 +267,8 @@ public class PlayerAttack : MonoBehaviour
         if (Time.timeScale == 0f)
             return;
 
+        PlayCooldownReadySounds();
+
         if (isAttackAnimating)
             return;
 
@@ -308,14 +327,55 @@ public class PlayerAttack : MonoBehaviour
         if (attackMode == AttackMode.Normal)
         {
             normalReadyTime = Time.time + GetEffectiveCooldown(profile, attackMode);
+            normalCooldownActive = true;
         }
         else
         {
             skillReadyTime = Time.time + GetEffectiveCooldown(profile, attackMode);
+            skillCooldownActive = true;
         }
 
         UpdateCooldownDisplay();
         PlayWeaponAnimation(attackMode);
+    }
+
+    private void PlayCooldownReadySounds()
+    {
+        if (normalCooldownActive && Time.time >= normalReadyTime)
+        {
+            normalCooldownActive = false;
+            PlayCooldownReadySound(
+                normalCooldownReadySound,
+                ref warnedMissingNormalCooldownSound,
+                "通常攻撃");
+        }
+
+        if (skillCooldownActive && Time.time >= skillReadyTime)
+        {
+            skillCooldownActive = false;
+            PlayCooldownReadySound(
+                skillCooldownReadySound,
+                ref warnedMissingSkillCooldownSound,
+                "スキル攻撃");
+        }
+    }
+
+    private void PlayCooldownReadySound(AudioClip clip, ref bool warnedMissingSound, string attackName)
+    {
+        if (clip == null)
+        {
+            if (!warnedMissingSound)
+            {
+                Debug.LogWarning(
+                    $"PlayerAttack: {attackName}のクールダウン完了SEが未設定です。InspectorでAudio Clipを割り当ててください。",
+                    this);
+                warnedMissingSound = true;
+            }
+
+            return;
+        }
+
+        cooldownAudioSource.PlayOneShot(clip, cooldownReadySoundVolume);
     }
 
     public void OnAttackAnimationFinished()
@@ -366,7 +426,7 @@ public class PlayerAttack : MonoBehaviour
         int damageCount = 0;
         foreach (Collider hit in hitColliders)
         {
-            if (hit.gameObject == gameObject)
+            if (hit.gameObject == gameObject || DamageTargetFilter.IsBuilding(hit.transform))
                 continue;
 
             if (hit.GetComponentInParent<IDamage>() is IDamage damageable)
@@ -583,7 +643,9 @@ public class PlayerAttack : MonoBehaviour
 
         var visuals = weapon.visuals;
 
-        if (visuals.weaponObject != null)
+        if (visuals.weaponObject != null
+            && weapon.weaponType != WeaponType.Fist
+            && weapon.weaponType != WeaponType.Gun)
         {
             visuals.weaponObject.SetActive(false);
             StartCoroutine(DisableWeaponObject(visuals.weaponObject, visuals.showTime));

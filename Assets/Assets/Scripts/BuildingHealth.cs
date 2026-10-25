@@ -23,6 +23,8 @@ public class BuildingHealth : MonoBehaviour, IDamage
 
     private void Awake()
     {
+        gameObject.tag = "Building";
+
         if (pointManager == null)
         {
             pointManager = FindFirstObjectByType<PointManager>();

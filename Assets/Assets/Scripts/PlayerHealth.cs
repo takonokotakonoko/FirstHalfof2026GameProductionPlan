@@ -5,8 +5,12 @@ public class PlayerHealth : MonoBehaviour, IDamage
 {
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private Slider HpBar;
+    [Header("レベルアップ効果音")]
+    [SerializeField] private AudioClip levelUpSound;
+    [SerializeField, Range(0f, 1f)] private float levelUpSoundVolume = 1f;
     [Min(1)] public int level = 1;
     private float currentHealth;
+    private AudioSource audioSource;
 
     public float StatMultiplier => 1f + Mathf.Max(0, level - 1) * 0.1f;
     public float MaxHealth => GetMaxHealth();
@@ -14,6 +18,11 @@ public class PlayerHealth : MonoBehaviour, IDamage
     private void Awake()
     {
         level = Mathf.Max(1, level);
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+            audioSource = gameObject.AddComponent<AudioSource>();
+
+        audioSource.playOnAwake = false;
         currentHealth = GetMaxHealth();
         UpdateHealthBar();
     }
@@ -24,7 +33,19 @@ public class PlayerHealth : MonoBehaviour, IDamage
         level++;
         currentHealth += GetMaxHealth() - previousMaxHealth;
         UpdateHealthBar();
+        PlayLevelUpSound();
         Debug.Log($"Player level up! Level: {level}, Max HP: {GetMaxHealth()}");
+    }
+
+    private void PlayLevelUpSound()
+    {
+        if (levelUpSound == null)
+        {
+            Debug.LogWarning("PlayerHealth: レベルアップSEが未設定です。InspectorでAudio Clipを割り当ててください。", this);
+            return;
+        }
+
+        audioSource.PlayOneShot(levelUpSound, levelUpSoundVolume);
     }
 
     public void AddMaxHealth(float amount)
