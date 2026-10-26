@@ -156,6 +156,9 @@ public class GenerateClusterBuildings : MonoBehaviour
     private bool[,] isMajorIntersectionCell;
 
     private GameObject groundParent;
+    // 敵の生成位置判定で「地面に接しているだけ」を重なりと誤判定しないよう、このチャンクが作った
+    // 地面タイル（敷地・道路・横断歩道・歩道）のColliderを覚えておく。信号機は柱が障害物になるため含めない。
+    private readonly HashSet<Collider> walkableSurfaceColliders = new HashSet<Collider>();
     private Vector2Int chunkCoord;
     private readonly HashSet<int> destroyedLotIds = new HashSet<int>();
 
@@ -1879,6 +1882,7 @@ public class GenerateClusterBuildings : MonoBehaviour
             DestroyImmediate(groundParent);
         }
 
+        walkableSurfaceColliders.Clear();
         groundParent = new GameObject("GroundTiles");
         groundParent.transform.SetParent(transform, false);
 
@@ -2007,7 +2011,7 @@ public class GenerateClusterBuildings : MonoBehaviour
         yield return null;
 
         UnityEngine.Profiling.Profiler.BeginSample("BuildGroundTiles.CombineMeshes.TrafficLights");
-        CreateCombinedTileMesh("TrafficLights", trafficLightsPrefab, trafficLightCombine);
+        CreateCombinedTileMesh("TrafficLights", trafficLightsPrefab, trafficLightCombine, isWalkableSurface: false);
         UnityEngine.Profiling.Profiler.EndSample();
         yield return null;
 
@@ -2507,7 +2511,8 @@ public class GenerateClusterBuildings : MonoBehaviour
     // マテリアルごとに別オブジェクトにしている。1つのMeshに複数マテリアルを持たせるには「サブメッシュごとに結合→さらに結合」の
     // 2段階が必要で頂点のコピーが1回増える一方、描画呼び出しの数はどちらもマテリアルの数で変わらないため。
     // 単一マテリアルのモデルは、従来どおり1オブジェクト（名前もnameのまま）になる。
-    private void CreateCombinedTileMesh(string name, GameObject prefab, List<CombineInstance> combineInstances)
+    // isWalkableSurfaceがtrueのものは、敵の生成位置判定で障害物として扱わない地面としてwalkableSurfaceCollidersに登録する。
+    private void CreateCombinedTileMesh(string name, GameObject prefab, List<CombineInstance> combineInstances, bool isWalkableSurface = true)
     {
         if (prefab == null || combineInstances.Count == 0)
         {
@@ -2559,6 +2564,11 @@ public class GenerateClusterBuildings : MonoBehaviour
 
             MeshCollider meshCollider = combinedObject.AddComponent<MeshCollider>();
             meshCollider.sharedMesh = combinedMesh;
+
+            if (isWalkableSurface)
+            {
+                walkableSurfaceColliders.Add(meshCollider);
+            }
         }
     }
 
@@ -2801,6 +2811,35 @@ public class GenerateClusterBuildings : MonoBehaviour
         }
 
         return landMap[x, y];
+    }
+
+    // 敵の生成を許可するセルか（EnemySpawnManagerから使う）。道路（幹線・生活・横断歩道）・歩道・信号機セルを許可し、
+    // 建物の足元になる敷地セルだけを除外する。幹線道路沿いの歩道と信号機セルはlandMap上はLotのため、
+    // sidewalkMap/trafficLightMapも併せて見る必要がある。それ以外のLotセルはComputeLotBuildingPlacementsが
+    // 1マスの建物まで使って隙間なく埋めるため、すべて建物の足元とみなせる。
+    // チャンクの範囲外、または生成前の場合はfalseを返す。
+    public bool IsEnemySpawnableAtWorldPosition(Vector3 worldPosition)
+    {
+        if (landMap == null || sidewalkMap == null || trafficLightMap == null)
+        {
+            return false;
+        }
+
+        Vector3 local = worldPosition - transform.position;
+        int x = Mathf.FloorToInt(local.x / cellWidth);
+        int y = Mathf.FloorToInt(local.z / cellHeight);
+        if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight)
+        {
+            return false;
+        }
+
+        return landMap[x, y] == LandType.Road || sidewalkMap[x, y] || trafficLightMap[x, y];
+    }
+
+    // 指定したColliderがこのチャンクの地面タイル（信号機を除く）かどうか。
+    public bool IsWalkableSurfaceCollider(Collider collider)
+    {
+        return walkableSurfaceColliders.Contains(collider);
     }
 
     // タスク12：指定したワールド座標から最も近い基幹道路（RoadClass.Major）セルを螺旋状に探索し、
