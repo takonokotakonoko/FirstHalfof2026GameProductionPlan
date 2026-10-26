@@ -3,6 +3,9 @@ using UnityEngine;
 public class EnemyHealth : MonoBehaviour, IDamage
 {
     [SerializeField] private float maxHealth = 100f;
+    [Header("死亡効果音")]
+    [SerializeField] private AudioClip deathSound;
+    [SerializeField, Range(0f, 1f)] private float deathSoundVolume = 1f;
     private float currentHealth;
     public int experimentPoint = 1;
     private bool isDead;
@@ -29,6 +32,15 @@ public class EnemyHealth : MonoBehaviour, IDamage
     private void Die()
     {
         isDead = true;
+
+        if (deathSound == null)
+        {
+            Debug.LogWarning("EnemyHealth: 死亡SEが未設定です。InspectorでAudio Clipを割り当ててください。", this);
+        }
+        else
+        {
+            AudioSource.PlayClipAtPoint(deathSound, transform.position, deathSoundVolume);
+        }
 
         LevelManager levelManager = GameObject.FindAnyObjectByType<LevelManager>();
         if (levelManager == null)
