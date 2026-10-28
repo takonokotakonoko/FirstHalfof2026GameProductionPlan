@@ -13,6 +13,9 @@ public class PlayerHealth : MonoBehaviour, IDamage
     public float StatMultiplier => 1f + Mathf.Max(0, level - 1) * 0.1f;
     public float MaxHealth => GetMaxHealth();
 
+    /// <summary>プレイヤーがダメージを受けたときに通知するイベント。</summary>
+    public event System.Action<float> Damaged;
+
     private void Awake()
     {
         level = Mathf.Max(1, level);
@@ -69,6 +72,7 @@ public class PlayerHealth : MonoBehaviour, IDamage
         currentHealth -= damageAmount;
         UpdateHealthBar();
         Debug.Log($"{gameObject.name} に {damageAmount} ダメージ！ 残りHP: {currentHealth}");
+        Damaged?.Invoke(damageAmount);
 
         if (currentHealth <= 0f)
         {
