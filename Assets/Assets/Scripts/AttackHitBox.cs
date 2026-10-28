@@ -13,9 +13,6 @@ public class AttackHitBox : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (DamageTargetFilter.IsBuilding(other.transform))
-            return;
-
         IDamage damageable = other.GetComponentInParent<IDamage>();
         if (damageable != null)
         {

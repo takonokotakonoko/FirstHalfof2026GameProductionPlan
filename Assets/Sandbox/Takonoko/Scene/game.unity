@@ -552,8 +552,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PointManager
   quotaPoint: 2
+<<<<<<< HEAD
+  buffAcquiredEffect: {fileID: 0}
+=======
   uiFont: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
   headingFont: {fileID: 12800000, guid: 240d6b8d4425e0644bbdbb2dfb4522b7, type: 3}
+>>>>>>> f8aa2c4512625136cc96bd213922d7e22cb120ac
   maxHealthBuff:
     enabled: 1
     unlockAfterSeconds: 0

@@ -426,7 +426,7 @@ public class PlayerAttack : MonoBehaviour
         int damageCount = 0;
         foreach (Collider hit in hitColliders)
         {
-            if (hit.gameObject == gameObject || DamageTargetFilter.IsBuilding(hit.transform))
+            if (hit.gameObject == gameObject)
                 continue;
 
             if (hit.GetComponentInParent<IDamage>() is IDamage damageable)

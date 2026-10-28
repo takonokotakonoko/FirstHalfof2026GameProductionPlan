@@ -81,6 +81,9 @@ public class PlayerHealth : MonoBehaviour, IDamage
 
     public void TakeDamage(float damageAmount)
     {
+        if (currentHealth <= 0f)
+            return;
+
         currentHealth -= damageAmount;
         UpdateHealthBar();
         Debug.Log($"{gameObject.name} に {damageAmount} ダメージ！ 残りHP: {currentHealth}");

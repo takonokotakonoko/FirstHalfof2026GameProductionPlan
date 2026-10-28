@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 74671900}
   - component: {fileID: 74671895}
   - component: {fileID: 74671901}
+  - component: {fileID: 74671902}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -177,6 +178,26 @@ MonoBehaviour:
   deathSound: {fileID: 8300000, guid: ff1ef3d8bb84fad4da783b62bec85b73, type: 3}
   deathSoundVolume: 1
   experimentPoint: 2
+--- !u!114 &74671902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 74671894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58d2ae3d8f985434f981f78137d91742, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyAttack
+  attackShape: 0
+  attackRange: 1.5
+  attackWidth: 1
+  attackDamage: 10
+  attackInterval: 1
+  targetTag: Player
+  attackRangeColor: {r: 1, g: 0.2, b: 0.1, a: 0.2}
+  attackEffect: {fileID: 0}
 --- !u!1 &1587227544
 GameObject:
   m_ObjectHideFlags: 0

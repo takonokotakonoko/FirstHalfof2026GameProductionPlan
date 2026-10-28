@@ -9,7 +9,7 @@ public enum EnemyAttackShape
 
 public class EnemyAttack : MonoBehaviour
 {
-    [Header("UŒ‚İ’è")]
+    [Header("ï¿½Uï¿½ï¿½ï¿½İ’ï¿½")]
     [SerializeField] private EnemyAttackShape attackShape = EnemyAttackShape.Circle;
     [SerializeField, Min(0f)] private float attackRange = 1.5f;
     [SerializeField, Min(0f)] private float attackWidth = 1f;
@@ -17,7 +17,6 @@ public class EnemyAttack : MonoBehaviour
     [SerializeField, Min(0.01f)] private float attackInterval = 1f;
     [SerializeField] private string targetTag = "Player";
     [SerializeField] private Color attackRangeColor = new Color(1f, 0.2f, 0.1f, 0.2f);
-
     private Transform target;
     private float nextAttackTime;
 
