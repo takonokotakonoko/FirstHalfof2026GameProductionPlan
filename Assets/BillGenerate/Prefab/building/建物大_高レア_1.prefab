@@ -101,6 +101,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90fea220f8b41024d944d0a43a4f0694, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingHealth
-  maxBuildingHealth: 10
+  buildingSize: 2
+  maxBuildingHealth: 120
   rewardPoint: 1
   collapseEffect: {fileID: 0}

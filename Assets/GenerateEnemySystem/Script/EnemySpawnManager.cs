@@ -9,14 +9,63 @@ public class EnemySpawnManager : MonoBehaviour
         public GameObject prefab;
     }
 
+    // 敵の種類ごとのステータス（ギャング・警察・軍隊など）。生成時にプレファブへ上書きする。
+    [System.Serializable]
+    private class EnemyTypeStats
+    {
+        [JpLabel("種類名")] public string typeName;
+        [Min(0f)] [JpLabel("攻撃力")] public float attackDamage = 10f;
+        [Min(1f)] [JpLabel("体力")] public float maxHealth = 20f;
+        [Min(0f)] [JpLabel("移動速度（m/s）")] public float moveSpeed = 0.5f;
+        [Min(0.01f)] [JpLabel("攻撃間隔（秒）")] public float attackInterval = 2f;
+        [Min(0f)] [JpLabel("攻撃範囲（半径m）")] public float attackRange = 0.5f;
+    }
+
+    // プレイヤーからの距離ごとの、敵の種類の出現割合。
+    [System.Serializable]
+    private class SpawnDistanceBand
+    {
+        [Tooltip("プレイヤーからこの距離（m）以内に生成した敵に、この割合を使う。距離の小さい順に並べる。")]
+        [JpLabel("この距離まで（m）")] public float maxDistance = 5f;
+        [Tooltip("「敵の種類」と同じ順番で出現の重みを並べる。例：ギャング50・警察40・軍隊10")]
+        [JpLabel("種類ごとの出現割合")] public float[] typeWeights;
+    }
+
     [Header("Phase Settings")]
     [SerializeField] [JpLabel("フェーズ設定")] private EnemyPhaseSettings phaseSettings;
 
+    [Header("Enemy Types")]
+    [Tooltip("生成した敵に上書きするステータス。空の場合はプレファブの値のまま生成する。")]
+    [SerializeField] [JpLabel("敵の種類")] private EnemyTypeStats[] enemyTypes =
+    {
+        new EnemyTypeStats { typeName = "ギャング", attackDamage = 10f, maxHealth = 20f, moveSpeed = 0.5f, attackInterval = 2f, attackRange = 0.5f },
+        new EnemyTypeStats { typeName = "警察", attackDamage = 15f, maxHealth = 30f, moveSpeed = 0.5f, attackInterval = 2f, attackRange = 0.5f },
+        new EnemyTypeStats { typeName = "軍隊", attackDamage = 30f, maxHealth = 60f, moveSpeed = 0.5f, attackInterval = 2f, attackRange = 0.5f }
+    };
+    [SerializeField] [JpLabel("距離ごとの出現割合")] private SpawnDistanceBand[] spawnDistanceBands =
+    {
+        new SpawnDistanceBand { maxDistance = 5f, typeWeights = new[] { 100f, 0f, 0f } },
+        new SpawnDistanceBand { maxDistance = 10f, typeWeights = new[] { 50f, 40f, 10f } },
+        new SpawnDistanceBand { maxDistance = 15f, typeWeights = new[] { 10f, 30f, 60f } }
+    };
+
+    [Header("Stealth Scaling (per player level, bosses excluded)")]
+    [Tooltip("プレイヤーのレベルが1上がるごとの、敵の最大体力の増加率。0.2 = 20%")]
+    [SerializeField, Min(0f)] [JpLabel("体力の増加率（1レベルごと）")] private float healthIncreasePerLevel = 0.2f;
+    [Tooltip("体力の増加はこのレベルまで。これより上のレベルでは増えない。")]
+    [SerializeField, Min(1)] [JpLabel("体力が増えるレベルの上限")] private int healthScalingMaxLevel = 11;
+    [Tooltip("プレイヤーのレベルが1上がるごとの、敵の移動速度の増加率。0.1 = 10%")]
+    [SerializeField, Min(0f)] [JpLabel("移動速度の増加率（1レベルごと）")] private float moveSpeedIncreasePerLevel = 0.1f;
+    [SerializeField, Min(0f)] [JpLabel("移動速度の上限（m/s）")] private float maxEnemyMoveSpeed = 2f;
+    [Tooltip("プレイヤーのレベルが1上がるごとに、敵の生成間隔を短くする秒数。")]
+    [SerializeField, Min(0f)] [JpLabel("生成間隔の短縮（1レベルごと・秒）")] private float spawnIntervalDecreasePerLevel = 0.2f;
+    [SerializeField, Min(0.01f)] [JpLabel("生成間隔の下限（秒）")] private float minSpawnInterval = 1f;
+
     [Header("Spawn Radius")]
-    [Tooltip("プレイヤーに近すぎる位置には生成しない距離（未確定・仮値）。")]
-    [SerializeField] [JpLabel("最小生成半径")] private float minSpawnRadius = 15f;
-    [Tooltip("この距離を超えた位置には生成しない（未確定・仮値）。")]
-    [SerializeField] [JpLabel("最大生成半径")] private float maxSpawnRadius = 40f;
+    [Tooltip("プレイヤーに近すぎる位置には生成しない距離。")]
+    [SerializeField] [JpLabel("最小生成半径")] private float minSpawnRadius = 2f;
+    [Tooltip("この距離を超えた位置には生成しない。距離ごとの出現割合の最大距離に合わせる。")]
+    [SerializeField] [JpLabel("最大生成半径")] private float maxSpawnRadius = 15f;
     [Tooltip("生成する敵のY座標。地面が完全に平坦なため、プレイヤーのY座標を流用せず固定値で指定する。Enemy.prefabの場合、元のシーンで正しく接地していた高さが0.85だった。")]
     [SerializeField] [JpLabel("生成Y座標")] private float spawnPositionY = 0.85f;
 
@@ -48,6 +97,7 @@ public class EnemySpawnManager : MonoBehaviour
     private float spawnTimer;
     private float elapsedSeconds;
     private float spawnIntervalAdjustment;
+    private int playerLevel = 1;
     private EnemyPhaseSettings.Phase currentPhase;
 
     public bool CanDecreaseSpawnInterval =>
@@ -151,15 +201,126 @@ public class EnemySpawnManager : MonoBehaviour
 
         float currentInterval = GetCurrentSpawnInterval();
         float targetInterval = Mathf.Clamp(currentInterval + adjustment, minimumInterval, maximumInterval);
-        spawnIntervalAdjustment = targetInterval - currentPhase.spawnIntervalSeconds;
+        spawnIntervalAdjustment = targetInterval - currentPhase.spawnIntervalSeconds + GetLevelIntervalDecrease();
         spawnTimer = Mathf.Min(spawnTimer, targetInterval);
+    }
+
+    /// <summary>
+    /// プレイヤーのレベルを伝えます。これ以降に生成する敵の体力・移動速度と、生成間隔に反映されます。
+    /// </summary>
+    public void SetPlayerLevel(int level)
+    {
+        playerLevel = Mathf.Max(1, level);
+        spawnTimer = Mathf.Min(spawnTimer, GetCurrentSpawnInterval());
     }
 
     private float GetCurrentSpawnInterval()
     {
         return currentPhase == null
-            ? 1f
-            : Mathf.Max(1f, currentPhase.spawnIntervalSeconds + spawnIntervalAdjustment);
+            ? minSpawnInterval
+            : Mathf.Max(minSpawnInterval,
+                currentPhase.spawnIntervalSeconds + spawnIntervalAdjustment - GetLevelIntervalDecrease());
+    }
+
+    private float GetLevelIntervalDecrease()
+    {
+        return spawnIntervalDecreasePerLevel * (playerLevel - 1);
+    }
+
+    // 生成した敵に、出現距離に応じた種類のステータスとレベルによる強化を適用する
+    private void ApplyEnemyStats(GameObject instance, float distanceFromPlayer)
+    {
+        EnemyHealth health = instance.GetComponent<EnemyHealth>();
+        if (health != null && health.IsBoss)
+        {
+            return;
+        }
+
+        EnemyTypeStats stats = PickEnemyType(distanceFromPlayer);
+        if (stats == null)
+        {
+            return;
+        }
+
+        int levelsAboveOne = playerLevel - 1;
+        int healthLevelsAboveOne = Mathf.Min(playerLevel, healthScalingMaxLevel) - 1;
+
+        if (health != null)
+        {
+            health.SetMaxHealth(stats.maxHealth * (1f + healthIncreasePerLevel * Mathf.Max(0, healthLevelsAboveOne)));
+        }
+
+        EnemyMove move = instance.GetComponent<EnemyMove>();
+        if (move != null)
+        {
+            float speed = stats.moveSpeed * (1f + moveSpeedIncreasePerLevel * levelsAboveOne);
+            move.SetMoveSpeed(Mathf.Min(speed, Mathf.Max(stats.moveSpeed, maxEnemyMoveSpeed)));
+        }
+
+        EnemyAttack attack = instance.GetComponent<EnemyAttack>();
+        if (attack != null)
+        {
+            attack.SetStats(stats.attackDamage, stats.attackInterval, stats.attackRange);
+        }
+
+        instance.name = $"{instance.name.Split('（')[0]}（{stats.typeName}）";
+    }
+
+    private EnemyTypeStats PickEnemyType(float distanceFromPlayer)
+    {
+        if (enemyTypes == null || enemyTypes.Length == 0)
+        {
+            return null;
+        }
+
+        SpawnDistanceBand band = null;
+        if (spawnDistanceBands != null)
+        {
+            // 距離の小さい順に見て、最初に当てはまる距離帯を使う。どれにも当てはまらなければ最後の距離帯を使う。
+            foreach (SpawnDistanceBand candidate in spawnDistanceBands)
+            {
+                if (candidate == null)
+                {
+                    continue;
+                }
+
+                band = candidate;
+                if (distanceFromPlayer <= candidate.maxDistance)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (band == null || band.typeWeights == null)
+        {
+            return enemyTypes[0];
+        }
+
+        float totalWeight = 0f;
+        int count = Mathf.Min(band.typeWeights.Length, enemyTypes.Length);
+        for (int i = 0; i < count; i++)
+        {
+            totalWeight += Mathf.Max(0f, band.typeWeights[i]);
+        }
+
+        if (totalWeight <= 0f)
+        {
+            return enemyTypes[0];
+        }
+
+        float roll = Random.Range(0f, totalWeight);
+        float cumulative = 0f;
+        for (int i = 0; i < count; i++)
+        {
+            cumulative += Mathf.Max(0f, band.typeWeights[i]);
+            if (roll <= cumulative)
+            {
+                return enemyTypes[i];
+            }
+        }
+
+        return enemyTypes[count - 1];
     }
 
     private void RefreshPhase()
@@ -239,6 +400,10 @@ public class EnemySpawnManager : MonoBehaviour
 
         GameObject instance = pool.Get(prefab, spawnPosition, Quaternion.identity);
         activeEnemies.Add(new ActiveEnemy { instance = instance, prefab = prefab });
+
+        Vector3 offsetFromPlayer = spawnPosition - player.position;
+        offsetFromPlayer.y = 0f;
+        ApplyEnemyStats(instance, offsetFromPlayer.magnitude);
 
         Debug.Log($"EnemySpawnManager: 敵を生成 {prefab.name}（フェーズ: {currentPhase.phaseName}, 位置: {spawnPosition}, 現在数: {activeEnemies.Count}/{currentPhase.maxActiveEnemies}）");
     }

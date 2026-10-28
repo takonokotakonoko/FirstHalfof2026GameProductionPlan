@@ -7,12 +7,50 @@ using UnityEngine.UI;
 
 public class PointManager : MonoBehaviour
 {
+    // 強化が出てくる建物のサイズ（複数選択可）
+    [Flags]
+    public enum BuildingSizeMask
+    {
+        None = 0,
+        Small = 1,  // 1 << BuildingSize.Small
+        Medium = 2, // 1 << BuildingSize.Medium
+        Large = 4   // 1 << BuildingSize.Large
+    }
+
+    public enum TimeRewardType
+    {
+        [InspectorName("スキル攻撃解放")] UnlockSkill,
+        [InspectorName("全能力n倍")] MultiplyAllStats
+    }
+
+    [Serializable]
+    private class TimeReward
+    {
+        [InspectorName("経過時間（秒）")]
+        [Tooltip("ゲーム開始からこの秒数が経過したら、報酬の画面を表示して受け取らせます")]
+        [Min(0f)] public float afterSeconds;
+
+        [InspectorName("報酬の種類")]
+        public TimeRewardType type;
+
+        [InspectorName("倍率")]
+        [Tooltip("「全能力n倍」の n。攻撃力・最大体力・移動速度に掛けます")]
+        [Min(0.01f)] public float multiplier = 1.5f;
+
+        [InspectorName("アイコン")]
+        public Texture2D icon;
+    }
+
     [Serializable]
     private class BuffSettings
     {
         [InspectorName("有効")]
         [Tooltip("このバフを候補に出すかどうか")]
         public bool enabled = true;
+
+        [InspectorName("出てくる建物")]
+        [Tooltip("このサイズの建物を壊したときだけ候補に出ます")]
+        public BuildingSizeMask sources = BuildingSizeMask.Small | BuildingSizeMask.Medium | BuildingSizeMask.Large;
 
         [InspectorName("出現開始時間（秒）")]
         [Tooltip("ゲーム開始からこの秒数が経過すると候補に出ます")]
@@ -62,9 +100,21 @@ public class PointManager : MonoBehaviour
     [Tooltip("強化を選んだときに鳴らす音")]
     [SerializeField] private string buffSelectSoundName = "decision";
 
+    [Header("時間経過による報酬")]
+    [Tooltip("経過時間の早い順に登録してください。時間になると画面を表示して受け取らせます")]
+    [SerializeField] private List<TimeReward> timeRewards = new List<TimeReward>
+    {
+        new TimeReward { afterSeconds = 300f, type = TimeRewardType.UnlockSkill },
+        new TimeReward { afterSeconds = 600f, type = TimeRewardType.MultiplyAllStats, multiplier = 1.5f }
+    };
+
+    [Tooltip("「全能力n倍」で移動速度を上げるときの上限（m/s）")]
+    [SerializeField, Min(0.1f)] private float allStatsMaxMoveSpeed = 4f;
+
     [Header("最大体力増加")]
     [SerializeField] private BuffSettings maxHealthBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Small | BuildingSizeMask.Medium,
         effectAmount = 20f,
         minimumValue = 1f,
         maximumValue = 9999f
@@ -73,15 +123,17 @@ public class PointManager : MonoBehaviour
     [Header("移動速度上昇")]
     [SerializeField] private BuffSettings moveSpeedBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Small | BuildingSizeMask.Medium,
         effectAmount = 0.1f,
         minimumValue = 0.1f,
         maximumValue = 4f
     };
 
-    [Header("通常攻撃力上昇")]
+    [Header("通常攻撃の参照攻撃力上昇")]
     [SerializeField] private BuffSettings normalDamageBuff = new BuffSettings
     {
-        effectAmount = 0.1f,
+        sources = BuildingSizeMask.Small | BuildingSizeMask.Medium,
+        effectAmount = 0.05f,
         minimumValue = 0f,
         maximumValue = 100f
     };
@@ -89,7 +141,7 @@ public class PointManager : MonoBehaviour
     [Header("必要経験値量の減少")]
     [SerializeField] private BuffSettings experienceRequirementBuff = new BuffSettings
     {
-        unlockAfterSeconds = 2f,
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         effectAmount = 1f,
         minimumValue = 2f,
         maximumValue = 999999f
@@ -98,7 +150,7 @@ public class PointManager : MonoBehaviour
     [Header("敵の出現頻度の低下")]
     [SerializeField] private BuffSettings slowerEnemySpawnsBuff = new BuffSettings
     {
-        unlockAfterSeconds = 2f,
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         effectAmount = 1f,
         minimumValue = 1f,
         maximumValue = 60f
@@ -107,15 +159,16 @@ public class PointManager : MonoBehaviour
     [Header("敵の出現頻度の上昇")]
     [SerializeField] private BuffSettings fasterEnemySpawnsBuff = new BuffSettings
     {
-        unlockAfterSeconds = 2f,
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         effectAmount = -1f,
         minimumValue = 1f,
         maximumValue = 60f
     };
 
-    [Header("スキル攻撃力上昇")]
+    [Header("スキルの参照攻撃力上昇")]
     [SerializeField] private BuffSettings skillDamageBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         unlockAfterSeconds = 300f,
         effectAmount = 0.1f,
         minimumValue = 0f,
@@ -125,6 +178,7 @@ public class PointManager : MonoBehaviour
     [Header("スキルの前隙減少")]
     [SerializeField] private BuffSettings skillStartupBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         unlockAfterSeconds = 300f,
         effectAmount = 0.1f,
         minimumValue = 0f,
@@ -134,6 +188,7 @@ public class PointManager : MonoBehaviour
     [Header("スキルの後隙減少")]
     [SerializeField] private BuffSettings skillRecoveryBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         unlockAfterSeconds = 300f,
         effectAmount = 0.1f,
         minimumValue = 0f,
@@ -143,6 +198,7 @@ public class PointManager : MonoBehaviour
     [Header("スキル攻撃のクールタイム短縮")]
     [SerializeField] private BuffSettings skillCooldownBuff = new BuffSettings
     {
+        sources = BuildingSizeMask.Medium | BuildingSizeMask.Large,
         unlockAfterSeconds = 300f,
         effectAmount = 0.05f,
         minimumValue = 0f,
@@ -160,6 +216,12 @@ public class PointManager : MonoBehaviour
     private CursorLockMode previousCursorLockState;
     private bool previousCursorVisibility;
     private Font builtinFont;
+
+    // 最後に壊した建物のサイズ（強化の候補の絞り込みに使う）
+    private BuildingSizeMask lastDestroyedSize = BuildingSizeMask.Small | BuildingSizeMask.Medium | BuildingSizeMask.Large;
+
+    // 次に受け取る時間経過報酬の番号
+    private int nextTimeRewardIndex;
 
     private void Awake()
     {
@@ -201,7 +263,69 @@ public class PointManager : MonoBehaviour
         enemySpawnManager = FindAnyObjectByType<EnemySpawnManager>();
     }
 
+    private void Update()
+    {
+        if (isSelecting || timeRewards == null || nextTimeRewardIndex >= timeRewards.Count)
+            return;
+
+        TimeReward reward = timeRewards[nextTimeRewardIndex];
+        if (reward == null)
+        {
+            nextTimeRewardIndex++;
+            return;
+        }
+
+        if (Time.timeSinceLevelLoad < reward.afterSeconds)
+            return;
+
+        nextTimeRewardIndex++;
+        OpenTimeReward(reward);
+    }
+
+    private void OpenTimeReward(TimeReward reward)
+    {
+        CacheGameSystems();
+
+        BuffOption option = reward.type == TimeRewardType.UnlockSkill
+            ? new BuffOption
+            {
+                Title = "スキル攻撃解放",
+                Description = "スキル攻撃（右クリック）が使えるようになる",
+                Icon = reward.icon,
+                Apply = () =>
+                {
+                    if (playerAttack != null)
+                        playerAttack.UnlockSkill();
+                }
+            }
+            : new BuffOption
+            {
+                Title = $"全能力{reward.multiplier:0.##}倍",
+                Description = $"攻撃力・最大体力・移動速度が {reward.multiplier:0.##}倍（移動速度は最大 {allStatsMaxMoveSpeed:0.##} m/s）",
+                Icon = reward.icon,
+                Apply = () =>
+                {
+                    if (playerHealth != null)
+                        playerHealth.MultiplyPower(reward.multiplier);
+                    if (playerMove != null)
+                        playerMove.MultiplyMoveSpeed(reward.multiplier, allStatsMaxMoveSpeed);
+                }
+            };
+
+        OpenSelectionScreen(new List<BuffOption> { option }, "時間経過報酬", "時間経過報酬 - カードを選んで受け取ってください");
+    }
+
     public void AddPoint(int point)
+    {
+        AddPoint(point, BuildingSizeMask.Small | BuildingSizeMask.Medium | BuildingSizeMask.Large);
+    }
+
+    public void AddPoint(int point, BuildingSize destroyedSize)
+    {
+        AddPoint(point, (BuildingSizeMask)(1 << (int)destroyedSize));
+    }
+
+    private void AddPoint(int point, BuildingSizeMask destroyedSize)
     {
         if (point <= 0)
         {
@@ -209,6 +333,7 @@ public class PointManager : MonoBehaviour
             return;
         }
 
+        lastDestroyedSize = destroyedSize;
         destroyPoint += point;
         if (!isSelecting && destroyPoint >= quotaPoint)
         {
@@ -230,7 +355,7 @@ public class PointManager : MonoBehaviour
         }
 
         List<BuffOption> choices = PickThreeRandomBuffs(availableBuffs);
-        OpenSelectionScreen(choices);
+        OpenSelectionScreen(choices, "強化を選択", "建物破壊報酬 - カードを1つ選んでください");
         if (destroyPoint >= quotaPoint)
             destroyPoint -= quotaPoint;
     }
@@ -269,8 +394,8 @@ public class PointManager : MonoBehaviour
             },
             new BuffOption
             {
-                Title = "通常攻撃力上昇",
-                Description = $"通常攻撃のダメージ +{normalDamageBuff.effectAmount * 100f:0.#}%",
+                Title = "通常攻撃の参照攻撃力上昇",
+                Description = $"通常攻撃の攻撃力参照率 +{normalDamageBuff.effectAmount * 100f:0.#}%",
                 Icon = normalDamageBuff.icon,
                 IsAvailable = () => IsUnlocked(normalDamageBuff, elapsedSeconds)
                     && playerAttack != null
@@ -328,11 +453,12 @@ public class PointManager : MonoBehaviour
             },
             new BuffOption
             {
-                Title = "スキル攻撃力上昇",
-                Description = $"スキル攻撃のダメージ +{skillDamageBuff.effectAmount * 100f:0.#}%",
+                Title = "スキルの参照攻撃力上昇",
+                Description = $"スキル攻撃の攻撃力参照率 +{skillDamageBuff.effectAmount * 100f:0.#}%",
                 Icon = skillDamageBuff.icon,
                 IsAvailable = () => IsUnlocked(skillDamageBuff, elapsedSeconds)
                     && playerAttack != null
+                    && playerAttack.IsSkillUnlocked
                     && playerAttack.CanIncreaseSkillDamage(skillDamageBuff.maximumValue),
                 Apply = () => playerAttack.IncreaseSkillDamage(
                     skillDamageBuff.effectAmount,
@@ -346,6 +472,7 @@ public class PointManager : MonoBehaviour
                 Icon = skillStartupBuff.icon,
                 IsAvailable = () => IsUnlocked(skillStartupBuff, elapsedSeconds)
                     && playerAttack != null
+                    && playerAttack.IsSkillUnlocked
                     && playerAttack.CanReduceSkillStartupUpTo(skillStartupBuff.maximumValue),
                 Apply = () => playerAttack.ReduceSkillStartup(
                     skillStartupBuff.effectAmount,
@@ -359,6 +486,7 @@ public class PointManager : MonoBehaviour
                 Icon = skillRecoveryBuff.icon,
                 IsAvailable = () => IsUnlocked(skillRecoveryBuff, elapsedSeconds)
                     && playerAttack != null
+                    && playerAttack.IsSkillUnlocked
                     && playerAttack.CanReduceSkillRecoveryUpTo(skillRecoveryBuff.maximumValue),
                 Apply = () => playerAttack.ReduceSkillRecovery(
                     skillRecoveryBuff.effectAmount,
@@ -372,6 +500,7 @@ public class PointManager : MonoBehaviour
                 Icon = skillCooldownBuff.icon,
                 IsAvailable = () => IsUnlocked(skillCooldownBuff, elapsedSeconds)
                     && playerAttack != null
+                    && playerAttack.IsSkillUnlocked
                     && playerAttack.CanReduceSkillCooldownUpTo(skillCooldownBuff.maximumValue),
                 Apply = () => playerAttack.ReduceSkillCooldown(
                     skillCooldownBuff.effectAmount,
@@ -384,10 +513,11 @@ public class PointManager : MonoBehaviour
         return buffs;
     }
 
-    private static bool IsUnlocked(BuffSettings settings, float elapsedSeconds, bool negativeAmount = false)
+    private bool IsUnlocked(BuffSettings settings, float elapsedSeconds, bool negativeAmount = false)
     {
         return settings != null
             && settings.enabled
+            && (settings.sources & lastDestroyedSize) != 0
             && (negativeAmount ? settings.effectAmount < 0f : settings.effectAmount > 0f)
             && elapsedSeconds >= settings.unlockAfterSeconds;
     }
@@ -404,7 +534,7 @@ public class PointManager : MonoBehaviour
         return availableBuffs.GetRange(0, choiceCount);
     }
 
-    private void OpenSelectionScreen(List<BuffOption> choices)
+    private void OpenSelectionScreen(List<BuffOption> choices, string header, string subtitle)
     {
         previousTimeScale = Time.timeScale;
         previousCursorLockState = Cursor.lockState;
@@ -415,7 +545,7 @@ public class PointManager : MonoBehaviour
         Cursor.visible = true;
 
         EnsureEventSystem();
-        selectionCanvas = BuildSelectionCanvas(choices);
+        selectionCanvas = BuildSelectionCanvas(choices, header, subtitle);
         SoundPlayer.PlayIfExists(selectionOpenSoundName);
     }
 
@@ -445,7 +575,7 @@ public class PointManager : MonoBehaviour
         return headingFont != null ? headingFont : GetBodyFont();
     }
 
-    private GameObject BuildSelectionCanvas(List<BuffOption> choices)
+    private GameObject BuildSelectionCanvas(List<BuffOption> choices, string header, string subtitle)
     {
         var canvasObject = new GameObject("Buff Selection Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
         Canvas canvas = canvasObject.GetComponent<Canvas>();
@@ -461,9 +591,9 @@ public class PointManager : MonoBehaviour
         Image panel = CreateImage(canvasObject.transform, "Panel", new Color(0.055f, 0.075f, 0.13f, 0.98f));
         SetCenteredRect(panel.rectTransform, new Vector2(1120f, 540f), Vector2.zero);
 
-        CreateText(panel.transform, "Header", "強化を選択", GetHeadingFont(), 46, FontStyle.Bold, TextAnchor.MiddleCenter,
+        CreateText(panel.transform, "Header", header, GetHeadingFont(), 46, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.05f, 0.79f), new Vector2(0.95f, 0.96f), Color.white);
-        CreateText(panel.transform, "Subtitle", "建物破壊報酬 - カードを1つ選んでください", GetBodyFont(), 22, FontStyle.Normal,
+        CreateText(panel.transform, "Subtitle", subtitle, GetBodyFont(), 22, FontStyle.Normal,
             TextAnchor.MiddleCenter, new Vector2(0.05f, 0.69f), new Vector2(0.95f, 0.81f), new Color(0.72f, 0.79f, 0.9f));
 
         const float cardWidth = 300f;

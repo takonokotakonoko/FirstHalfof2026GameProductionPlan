@@ -60,6 +60,18 @@ public class PlayerMove : MonoBehaviour
         moveSpeed = Mathf.Clamp(moveSpeed * (1f + percentage), minimumSpeed, maximumSpeed);
     }
 
+    /// <summary>移動速度に倍率を掛けます。maximumSpeed を超えないようにします。</summary>
+    public void MultiplyMoveSpeed(float multiplier, float maximumSpeed)
+    {
+        if (multiplier <= 0f || maximumSpeed <= 0f)
+        {
+            Debug.LogWarning("PlayerMove: 倍率と最大速度を確認してください。", this);
+            return;
+        }
+
+        moveSpeed = Mathf.Min(moveSpeed * multiplier, Mathf.Max(moveSpeed, maximumSpeed));
+    }
+
     private void MoveAndCamera()
     {
         float moveX = Input.GetAxis("Horizontal");
