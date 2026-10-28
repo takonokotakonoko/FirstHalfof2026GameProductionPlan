@@ -62,6 +62,9 @@ public class PlayerAttack : MonoBehaviour
         public string skillTrigger = "SkillAttack";
     }
 
+    // 別シーンで選んだ武器を保存する PlayerPrefs のキー
+    private const string SelectedWeaponKey = "SelectedWeapon";
+
     [Header("使える武器は1つのみ")]
     [SerializeField] private List<WeaponType> usableWeapons = new List<WeaponType>
     {
@@ -121,10 +124,9 @@ public class PlayerAttack : MonoBehaviour
     public TextMeshProUGUI normal_Cooldown;
     public TextMeshProUGUI skill_Cooldown;
 
-    [Header("クールダウン完了SE")]
-    [SerializeField] private AudioClip normalCooldownReadySound;
-    [SerializeField] private AudioClip skillCooldownReadySound;
-    [SerializeField, Range(0f, 1f)] private float cooldownReadySoundVolume = 1f;
+    [Header("クールダウン完了SE（SoundPlayerに登録した名前）")]
+    [SerializeField] private string normalCooldownReadySoundName = "normalReady";
+    [SerializeField] private string skillCooldownReadySoundName = "skillReady";
 
     [Header("円形クールタイムゲージ")]
     [SerializeField] private Image normalCooldownGauge;
@@ -135,9 +137,6 @@ public class PlayerAttack : MonoBehaviour
     private float skillReadyTime;
     private bool normalCooldownActive;
     private bool skillCooldownActive;
-    private bool warnedMissingNormalCooldownSound;
-    private bool warnedMissingSkillCooldownSound;
-    private AudioSource cooldownAudioSource;
     private bool isAttackAnimating;
     private PlayerHealth playerHealth;
     private float normalDamageBonus;
@@ -161,13 +160,7 @@ public class PlayerAttack : MonoBehaviour
         if (playerHealth == null)
             Debug.LogError("PlayerAttack requires a PlayerHealth component on this object or a parent.", this);
 
-        cooldownAudioSource = GetComponent<AudioSource>();
-        if (cooldownAudioSource == null)
-        {
-            cooldownAudioSource = gameObject.AddComponent<AudioSource>();
-            cooldownAudioSource.playOnAwake = false;
-        }
-
+        LoadSelectedWeapon();
         EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
         ApplyUsableWeaponStates();
@@ -239,6 +232,41 @@ public class PlayerAttack : MonoBehaviour
             if (!weaponMap.ContainsKey(weapon.weaponType))
                 weaponMap[weapon.weaponType] = weapon;
         }
+    }
+
+    /// <summary>
+    /// 使う武器を保存します。別のシーンからでも呼び出せ、
+    /// 次に PlayerAttack が読み込まれたときに反映されます。
+    ///
+    /// 使用例：
+    /// PlayerAttack.SaveSelectedWeapon(PlayerAttack.WeaponType.Gun);
+    /// </summary>
+    public static void SaveSelectedWeapon(WeaponType weaponType)
+    {
+        PlayerPrefs.SetInt(SelectedWeaponKey, (int)weaponType);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>
+    /// 同じシーンにいる PlayerAttack の武器をすぐに切り替えます。
+    /// </summary>
+    public void SetUsableWeapon(WeaponType weaponType)
+    {
+        usableWeapons = new List<WeaponType> { weaponType };
+        ApplyUsableWeaponStates();
+        UpdateCooldownDisplay();
+    }
+
+    private void LoadSelectedWeapon()
+    {
+        if (!PlayerPrefs.HasKey(SelectedWeaponKey))
+            return;
+
+        int savedWeapon = PlayerPrefs.GetInt(SelectedWeaponKey);
+        if (!System.Enum.IsDefined(typeof(WeaponType), savedWeapon))
+            return;
+
+        usableWeapons = new List<WeaponType> { (WeaponType)savedWeapon };
     }
 
     public bool IsUsableWeapon(WeaponType weaponType)
@@ -344,38 +372,14 @@ public class PlayerAttack : MonoBehaviour
         if (normalCooldownActive && Time.time >= normalReadyTime)
         {
             normalCooldownActive = false;
-            PlayCooldownReadySound(
-                normalCooldownReadySound,
-                ref warnedMissingNormalCooldownSound,
-                "通常攻撃");
+            SoundPlayer.PlayIfExists(normalCooldownReadySoundName);
         }
 
         if (skillCooldownActive && Time.time >= skillReadyTime)
         {
             skillCooldownActive = false;
-            PlayCooldownReadySound(
-                skillCooldownReadySound,
-                ref warnedMissingSkillCooldownSound,
-                "スキル攻撃");
+            SoundPlayer.PlayIfExists(skillCooldownReadySoundName);
         }
-    }
-
-    private void PlayCooldownReadySound(AudioClip clip, ref bool warnedMissingSound, string attackName)
-    {
-        if (clip == null)
-        {
-            if (!warnedMissingSound)
-            {
-                Debug.LogWarning(
-                    $"PlayerAttack: {attackName}のクールダウン完了SEが未設定です。InspectorでAudio Clipを割り当ててください。",
-                    this);
-                warnedMissingSound = true;
-            }
-
-            return;
-        }
-
-        cooldownAudioSource.PlayOneShot(clip, cooldownReadySoundVolume);
     }
 
     public void OnAttackAnimationFinished()

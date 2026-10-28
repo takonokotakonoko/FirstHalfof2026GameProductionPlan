@@ -89,6 +89,9 @@ public class MusicPlayer : MonoBehaviour
     // 現在再生中のBGMデータ
     private MusicData currentMusic;
 
+    // 最後にPlay()で指定されたBGMデータ（フェード中は切り替え先の曲）
+    private MusicData requestedMusic;
+
 
     // =========================================================
     // 初期化
@@ -227,6 +230,15 @@ public class MusicPlayer : MonoBehaviour
 
             return;
         }
+
+
+        // 同じBGMを再生中（または切り替え中）なら、最初からやり直さない
+        if (requestedMusic == music && audioSource.isPlaying)
+        {
+            return;
+        }
+
+        requestedMusic = music;
 
 
         // フェード処理中なら一度止める

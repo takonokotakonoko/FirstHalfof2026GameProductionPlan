@@ -95,6 +95,24 @@ public class SoundPlayer : MonoBehaviour
 
 
     /// <summary>
+    /// シーンにSoundPlayerがあれば、名前を指定して効果音を再生します。
+    /// SoundPlayerがない場合（タイトルを通さずに再生した場合など）は何もしません。
+    ///
+    /// 使用例：
+    /// SoundPlayer.PlayIfExists("Click");
+    /// </summary>
+    public static void PlayIfExists(string soundName)
+    {
+        if (Instance == null)
+        {
+            return;
+        }
+
+        Instance.Play(soundName);
+    }
+
+
+    /// <summary>
     /// 名前を指定して効果音を再生します。
     ///
     /// 使用例：

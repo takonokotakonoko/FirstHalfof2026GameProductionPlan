@@ -14,11 +14,17 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Sandbox/Takonoko/Scene/title.unity
     guid: 8cb8b5849e2558248a9cf55c4c710ba5
-  - enabled: 1
+  - enabled: 0
     path: Assets/Sandbox/Takonoko/Scene/game.unity
     guid: 374e383ddf07aa64291ba45d995efd58
-  - enabled: 1
+  - enabled: 0
     path: Assets/Sandbox/Takonoko/Scene/WeaponSelect.unity
     guid: e34af1b9744eaa747ae4ad912235c5c0
+  - enabled: 1
+    path: Assets/Sandbox/Takonoko/Scene/game2.unity
+    guid: 058529898e6695b47a7721c0d3a72e52
+  - enabled: 1
+    path: Assets/Sandbox/Takonoko/Scene/opening.unity
+    guid: 3d2d8d5b16f216a4eb7e07ca2e238ad1
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

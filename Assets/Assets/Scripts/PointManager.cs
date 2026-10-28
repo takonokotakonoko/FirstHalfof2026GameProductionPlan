@@ -29,12 +29,17 @@ public class PointManager : MonoBehaviour
         [InspectorName("最大値")]
         [Tooltip("対象ステータスの最大値、または増加バフの上限")]
         public float maximumValue;
+
+        [InspectorName("アイコン")]
+        [Tooltip("選択カードに表示するアイコン。未設定の場合はアイコンなしで表示します")]
+        public Texture2D icon;
     }
 
     private sealed class BuffOption
     {
         public string Title;
         public string Description;
+        public Texture2D Icon;
         public Func<bool> IsAvailable;
         public Action Apply;
     }
@@ -49,6 +54,13 @@ public class PointManager : MonoBehaviour
 
     [Tooltip("見出し・カードタイトルなど太字部分に使うフォント。未設定の場合は上の UIフォント を使います")]
     [SerializeField] private Font headingFont;
+
+    [Header("効果音（SoundPlayerに登録した名前）")]
+    [Tooltip("強化の選択画面を開いたときに鳴らす音")]
+    [SerializeField] private string selectionOpenSoundName = "rewardOpen";
+
+    [Tooltip("強化を選んだときに鳴らす音")]
+    [SerializeField] private string buffSelectSoundName = "decision";
 
     [Header("最大体力増加")]
     [SerializeField] private BuffSettings maxHealthBuff = new BuffSettings
@@ -233,6 +245,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "最大体力増加",
                 Description = $"最大体力と現在体力が +{maxHealthBuff.effectAmount:0.#}",
+                Icon = maxHealthBuff.icon,
                 IsAvailable = () => IsUnlocked(maxHealthBuff, elapsedSeconds)
                     && playerHealth != null
                     && playerHealth.CanIncreaseMaxHealth(maxHealthBuff.maximumValue),
@@ -245,6 +258,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "移動速度上昇",
                 Description = $"移動速度 +{moveSpeedBuff.effectAmount * 100f:0.#}%（最大 {moveSpeedBuff.maximumValue:0.##} m/s）",
+                Icon = moveSpeedBuff.icon,
                 IsAvailable = () => IsUnlocked(moveSpeedBuff, elapsedSeconds)
                     && playerMove != null
                     && playerMove.CanIncreaseMoveSpeedUpTo(moveSpeedBuff.maximumValue),
@@ -257,6 +271,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "通常攻撃力上昇",
                 Description = $"通常攻撃のダメージ +{normalDamageBuff.effectAmount * 100f:0.#}%",
+                Icon = normalDamageBuff.icon,
                 IsAvailable = () => IsUnlocked(normalDamageBuff, elapsedSeconds)
                     && playerAttack != null
                     && playerAttack.CanIncreaseNormalDamage(normalDamageBuff.maximumValue),
@@ -269,6 +284,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "必要経験値量の減少",
                 Description = $"次のレベルに必要な経験値 -{Mathf.RoundToInt(experienceRequirementBuff.effectAmount)}（最小 {Mathf.RoundToInt(experienceRequirementBuff.minimumValue)}）",
+                Icon = experienceRequirementBuff.icon,
                 IsAvailable = () => IsUnlocked(experienceRequirementBuff, elapsedSeconds)
                     && Mathf.RoundToInt(experienceRequirementBuff.effectAmount) > 0
                     && levelManager != null
@@ -282,6 +298,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "敵の出現頻度の低下",
                 Description = $"敵の出現間隔 +{slowerEnemySpawnsBuff.effectAmount:0.##} 秒（最大 {slowerEnemySpawnsBuff.maximumValue:0.##} 秒）",
+                Icon = slowerEnemySpawnsBuff.icon,
                 IsAvailable = () => IsUnlocked(slowerEnemySpawnsBuff, elapsedSeconds)
                     && enemySpawnManager != null
                     && enemySpawnManager.CanAdjustSpawnInterval(
@@ -297,6 +314,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "敵の出現頻度の上昇",
                 Description = $"敵の出現間隔 {fasterEnemySpawnsBuff.effectAmount:0.##} 秒（最小 {fasterEnemySpawnsBuff.minimumValue:0.##} 秒）",
+                Icon = fasterEnemySpawnsBuff.icon,
                 IsAvailable = () => IsUnlocked(fasterEnemySpawnsBuff, elapsedSeconds, true)
                     && enemySpawnManager != null
                     && enemySpawnManager.CanAdjustSpawnInterval(
@@ -312,6 +330,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "スキル攻撃力上昇",
                 Description = $"スキル攻撃のダメージ +{skillDamageBuff.effectAmount * 100f:0.#}%",
+                Icon = skillDamageBuff.icon,
                 IsAvailable = () => IsUnlocked(skillDamageBuff, elapsedSeconds)
                     && playerAttack != null
                     && playerAttack.CanIncreaseSkillDamage(skillDamageBuff.maximumValue),
@@ -324,6 +343,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "スキルの前隙減少",
                 Description = $"スキルの攻撃開始が {skillStartupBuff.effectAmount * 100f:0.#}% 速くなる（最大 {skillStartupBuff.maximumValue * 100f:0.#}%）",
+                Icon = skillStartupBuff.icon,
                 IsAvailable = () => IsUnlocked(skillStartupBuff, elapsedSeconds)
                     && playerAttack != null
                     && playerAttack.CanReduceSkillStartupUpTo(skillStartupBuff.maximumValue),
@@ -336,6 +356,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "スキルの後隙減少",
                 Description = $"スキル後の硬直が {skillRecoveryBuff.effectAmount * 100f:0.#}% 短くなる（最大 {skillRecoveryBuff.maximumValue * 100f:0.#}%）",
+                Icon = skillRecoveryBuff.icon,
                 IsAvailable = () => IsUnlocked(skillRecoveryBuff, elapsedSeconds)
                     && playerAttack != null
                     && playerAttack.CanReduceSkillRecoveryUpTo(skillRecoveryBuff.maximumValue),
@@ -348,6 +369,7 @@ public class PointManager : MonoBehaviour
             {
                 Title = "スキル攻撃の CD 短縮",
                 Description = $"スキルのクールタイム -{skillCooldownBuff.effectAmount * 100f:0.#}%（最大 {skillCooldownBuff.maximumValue * 100f:0.#}%）",
+                Icon = skillCooldownBuff.icon,
                 IsAvailable = () => IsUnlocked(skillCooldownBuff, elapsedSeconds)
                     && playerAttack != null
                     && playerAttack.CanReduceSkillCooldownUpTo(skillCooldownBuff.maximumValue),
@@ -394,6 +416,7 @@ public class PointManager : MonoBehaviour
 
         EnsureEventSystem();
         selectionCanvas = BuildSelectionCanvas(choices);
+        SoundPlayer.PlayIfExists(selectionOpenSoundName);
     }
 
     private static void EnsureEventSystem()
@@ -490,15 +513,42 @@ public class PointManager : MonoBehaviour
         Font bodyFont = GetBodyFont();
         Font titleFont = GetHeadingFont();
 
+        // アイコンがある強化だけ、タイトルの上にアイコンを表示し、文字をその分下げる
+        bool hasIcon = choice.Icon != null;
+        if (hasIcon)
+            CreateIcon(card.transform, choice.Icon, new Vector2(0.5f, 0.69f), 80f);
+
         CreateText(card.transform, "Number", $"0{index + 1}", titleFont, 20, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.95f), new Color(0.69f, 0.87f, 1f));
         CreateText(card.transform, "Title", choice.Title, titleFont, 27, FontStyle.Bold, TextAnchor.MiddleCenter,
-            new Vector2(0.08f, 0.49f), new Vector2(0.92f, 0.82f), Color.white);
+            new Vector2(0.08f, hasIcon ? 0.4f : 0.49f), new Vector2(0.92f, hasIcon ? 0.57f : 0.82f), Color.white);
         CreateText(card.transform, "Description", choice.Description, bodyFont, 19, FontStyle.Normal, TextAnchor.MiddleCenter,
-            new Vector2(0.1f, 0.15f), new Vector2(0.9f, 0.48f), new Color(0.82f, 0.88f, 0.96f));
+            new Vector2(0.1f, 0.15f), new Vector2(0.9f, hasIcon ? 0.41f : 0.48f), new Color(0.82f, 0.88f, 0.96f));
         CreateText(card.transform, "Select", "選択する", titleFont, 19, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.035f), new Vector2(0.92f, 0.15f), new Color(0.55f, 0.83f, 1f));
         return card;
+    }
+
+    private static RawImage CreateIcon(Transform parent, Texture2D texture, Vector2 anchor, float maxSize)
+    {
+        var iconObject = new GameObject("Icon", typeof(RectTransform), typeof(RawImage));
+        iconObject.transform.SetParent(parent, false);
+        RawImage icon = iconObject.GetComponent<RawImage>();
+        icon.texture = texture;
+        icon.raycastTarget = false;
+
+        // 縦横比を保ったまま maxSize の正方形に収める
+        float aspect = texture.height > 0 ? (float)texture.width / texture.height : 1f;
+        Vector2 size = aspect >= 1f
+            ? new Vector2(maxSize, maxSize / aspect)
+            : new Vector2(maxSize * aspect, maxSize);
+
+        RectTransform rect = icon.rectTransform;
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.sizeDelta = size;
+        rect.anchoredPosition = Vector2.zero;
+        return icon;
     }
 
     private static Image CreateImage(Transform parent, string objectName, Color color)
@@ -560,6 +610,7 @@ public class PointManager : MonoBehaviour
 
     private void ChooseBuff(BuffOption choice)
     {
+        SoundPlayer.PlayIfExists(buffSelectSoundName);
         choice.Apply();
         Destroy(selectionCanvas);
         selectionCanvas = null;
