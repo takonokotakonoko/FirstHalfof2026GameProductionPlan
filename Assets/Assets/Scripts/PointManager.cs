@@ -43,6 +43,13 @@ public class PointManager : MonoBehaviour
     [SerializeField, Min(1)] private int quotaPoint = 2;
     private int destroyPoint;
 
+    [Header("UIフォント")]
+    [Tooltip("選択画面全体で使うフォント。未設定の場合は Unity 標準フォント（LegacyRuntime）を使います")]
+    [SerializeField] private Font uiFont;
+
+    [Tooltip("見出し・カードタイトルなど太字部分に使うフォント。未設定の場合は上の UIフォント を使います")]
+    [SerializeField] private Font headingFont;
+
     [Header("最大体力増加")]
     [SerializeField] private BuffSettings maxHealthBuff = new BuffSettings
     {
@@ -140,6 +147,7 @@ public class PointManager : MonoBehaviour
     private float previousTimeScale = 1f;
     private CursorLockMode previousCursorLockState;
     private bool previousCursorVisibility;
+    private Font builtinFont;
 
     private void Awake()
     {
@@ -399,6 +407,21 @@ public class PointManager : MonoBehaviour
         inputModule.AssignDefaultActions();
     }
 
+    private Font GetBodyFont()
+    {
+        if (uiFont != null)
+            return uiFont;
+
+        if (builtinFont == null)
+            builtinFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return builtinFont;
+    }
+
+    private Font GetHeadingFont()
+    {
+        return headingFont != null ? headingFont : GetBodyFont();
+    }
+
     private GameObject BuildSelectionCanvas(List<BuffOption> choices)
     {
         var canvasObject = new GameObject("Buff Selection Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -415,9 +438,9 @@ public class PointManager : MonoBehaviour
         Image panel = CreateImage(canvasObject.transform, "Panel", new Color(0.055f, 0.075f, 0.13f, 0.98f));
         SetCenteredRect(panel.rectTransform, new Vector2(1120f, 540f), Vector2.zero);
 
-        CreateText(panel.transform, "Header", "強化を選択", 46, FontStyle.Bold, TextAnchor.MiddleCenter,
+        CreateText(panel.transform, "Header", "強化を選択", GetHeadingFont(), 46, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.05f, 0.79f), new Vector2(0.95f, 0.96f), Color.white);
-        CreateText(panel.transform, "Subtitle", "建物破壊報酬 - カードを1つ選んでください", 22, FontStyle.Normal,
+        CreateText(panel.transform, "Subtitle", "建物破壊報酬 - カードを1つ選んでください", GetBodyFont(), 22, FontStyle.Normal,
             TextAnchor.MiddleCenter, new Vector2(0.05f, 0.69f), new Vector2(0.95f, 0.81f), new Color(0.72f, 0.79f, 0.9f));
 
         const float cardWidth = 300f;
@@ -464,13 +487,16 @@ public class PointManager : MonoBehaviour
         };
         button.onClick.AddListener(() => ChooseBuff(choice));
 
-        CreateText(card.transform, "Number", $"0{index + 1}", 20, FontStyle.Bold, TextAnchor.MiddleCenter,
+        Font bodyFont = GetBodyFont();
+        Font titleFont = GetHeadingFont();
+
+        CreateText(card.transform, "Number", $"0{index + 1}", titleFont, 20, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.82f), new Vector2(0.92f, 0.95f), new Color(0.69f, 0.87f, 1f));
-        CreateText(card.transform, "Title", choice.Title, 27, FontStyle.Bold, TextAnchor.MiddleCenter,
+        CreateText(card.transform, "Title", choice.Title, titleFont, 27, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.49f), new Vector2(0.92f, 0.82f), Color.white);
-        CreateText(card.transform, "Description", choice.Description, 19, FontStyle.Normal, TextAnchor.MiddleCenter,
+        CreateText(card.transform, "Description", choice.Description, bodyFont, 19, FontStyle.Normal, TextAnchor.MiddleCenter,
             new Vector2(0.1f, 0.15f), new Vector2(0.9f, 0.48f), new Color(0.82f, 0.88f, 0.96f));
-        CreateText(card.transform, "Select", "選択する", 19, FontStyle.Bold, TextAnchor.MiddleCenter,
+        CreateText(card.transform, "Select", "選択する", titleFont, 19, FontStyle.Bold, TextAnchor.MiddleCenter,
             new Vector2(0.08f, 0.035f), new Vector2(0.92f, 0.15f), new Color(0.55f, 0.83f, 1f));
         return card;
     }
@@ -488,6 +514,7 @@ public class PointManager : MonoBehaviour
         Transform parent,
         string objectName,
         string content,
+        Font font,
         int fontSize,
         FontStyle fontStyle,
         TextAnchor alignment,
@@ -504,7 +531,7 @@ public class PointManager : MonoBehaviour
         rect.offsetMax = new Vector2(-8f, -4f);
 
         Text text = textObject.GetComponent<Text>();
-        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.font = font;
         text.text = content;
         text.fontSize = fontSize;
         text.fontStyle = fontStyle;
