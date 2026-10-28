@@ -22,7 +22,7 @@ public class PunchController : MonoBehaviour
         {
             TriggerPunchLeft();
         }
-        else if (Input.GetMouseButtonDown(1))
+        else if (Input.GetMouseButtonDown(1) && (playerAttack == null || playerAttack.IsSkillUnlocked))
         {
             TriggerPunchRight();
         }

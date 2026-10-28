@@ -2,16 +2,18 @@ using UnityEngine;
 
 public class EnemyMove : MonoBehaviour
 {
-    [Header("�ړ��ݒ�")]
-    [SerializeField] private float moveSpeed = 2f;
-    [SerializeField, Min(0f)] private float stoppingDistance = 1.5f;
+    [Header("移動設定")]
+    [SerializeField] private float moveSpeed = 0.5f;
+    [Tooltip("プレイヤーとの距離（中心どうし）がこれ以下になったら止まる。攻撃範囲に入ったときも止まる")]
+    [SerializeField, Min(0f)] private float stoppingDistance = 0f;
     [SerializeField] private string targetTag = "Player";
-    [SerializeField] private SphereCollider searchZone;
 
     private Transform target;
     private EnemyAttack enemyAttack;
     [Header("敵のアニメーション")]
     private Animator animator;
+
+    public float MoveSpeed => moveSpeed;
 
     private void Awake()
     {
@@ -21,32 +23,30 @@ public class EnemyMove : MonoBehaviour
 
     private void Start()
     {
+        FindTarget();
+    }
+
+    public void SetMoveSpeed(float speed)
+    {
+        moveSpeed = Mathf.Max(0f, speed);
+    }
+
+    private void FindTarget()
+    {
         GameObject targetObject = GameObject.FindWithTag(targetTag);
         if (targetObject != null)
             target = targetObject.transform;
     }
 
+    // プレイヤーとの距離に関わらず、常にプレイヤーに向かって進む
     private void Update()
     {
         if (target == null)
-            return;
-
-        Vector3 direction = target.position - transform.position;
-        direction.y = 0f;
-
-        if (direction.sqrMagnitude > 0.0001f)
         {
-            transform.rotation = Quaternion.LookRotation(direction);
+            FindTarget();
+            if (target == null)
+                return;
         }
-    }
-
-    private void OnTriggerStay(Collider other)
-    {
-        if (!other.CompareTag(targetTag))
-            return;
-
-        if (target == null)
-            target = other.transform;
 
         Vector3 moveDirection = target.position - transform.position;
         moveDirection.y = 0f;
@@ -59,9 +59,7 @@ public class EnemyMove : MonoBehaviour
         // 攻撃範囲内なら移動しない
         if (enemyAttack != null && enemyAttack.IsTargetInRange(target))
         {
-            if (animator != null)
-                animator.SetBool("IsMoving", false);
-
+            SetMoving(false);
             return;
         }
 
@@ -75,22 +73,17 @@ public class EnemyMove : MonoBehaviour
         if (moveDistance > 0.001f)
         {
             transform.position += moveDirection.normalized * moveDistance;
-
-            if (animator != null)
-                animator.SetBool("IsMoving", true);
+            SetMoving(true);
         }
-        else if(moveDistance <= 0.001 || (enemyAttack != null && !enemyAttack.IsTargetInRange(target)))
+        else
         {
-            if (animator != null)
-                animator.SetBool("IsMoving", false);
+            SetMoving(false);
         }
     }
 
-    private void OnTriggerExit(Collider other)
+    private void SetMoving(bool isMoving)
     {
-        if(other.CompareTag(targetTag) && animator != null)
-        {
-            animator.SetBool("IsMoving", false);
-        }
+        if (animator != null)
+            animator.SetBool("IsMoving", isMoving);
     }
 }

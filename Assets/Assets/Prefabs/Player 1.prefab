@@ -158,7 +158,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc490157798b01c4386fd57dc6833902, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMove
-  moveSpeed: 3.5
+  moveSpeed: 1
   rotateSpeed: 10
   cameraHeight: 0.5
   cameraPitchMin: -20
@@ -201,19 +201,25 @@ MonoBehaviour:
   - weaponType: 0
     normalAttack:
       mode: 0
+      hitType: 0
       range: 4
       radius: 1.5
-      damage: 50
+      damageRate: 0.75
       offset: 2
-      cooldown: 0.35
+      startupTime: 0.3
+      recoveryTime: 0.4
+      cooldown: 0
       gizmoColor: {r: 1, g: 0, b: 0, a: 1}
     skillAttack:
       mode: 1
+      hitType: 2
       range: 5
       radius: 2.5
-      damage: 40
+      damageRate: 2
       offset: 2.5
-      cooldown: 0.8
+      startupTime: 3
+      recoveryTime: 2
+      cooldown: 30
       gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
     visuals:
       weaponObject: {fileID: 7136354681588353592}
@@ -224,19 +230,25 @@ MonoBehaviour:
   - weaponType: 1
     normalAttack:
       mode: 0
+      hitType: 2
       range: 2.8
       radius: 1
-      damage: 35
+      damageRate: 1
       offset: 1
-      cooldown: 0.5
+      startupTime: 0.5
+      recoveryTime: 0.5
+      cooldown: 0
       gizmoColor: {r: 1, g: 0, b: 1, a: 1}
     skillAttack:
       mode: 1
+      hitType: 1
       range: 4.5
-      radius: 1.5
-      damage: 80
-      offset: 1.5
-      cooldown: 1.2
+      radius: 0.7
+      damageRate: 3
+      offset: 2.25
+      startupTime: 4
+      recoveryTime: 4
+      cooldown: 60
       gizmoColor: {r: 0, g: 1, b: 1, a: 1}
     visuals:
       weaponObject: {fileID: 0}
@@ -247,19 +259,25 @@ MonoBehaviour:
   - weaponType: 2
     normalAttack:
       mode: 0
+      hitType: 1
       range: 8
       radius: 1
-      damage: 50
+      damageRate: 0.5
       offset: 4
-      cooldown: 0.45
+      startupTime: 0.2
+      recoveryTime: 0.3
+      cooldown: 0
       gizmoColor: {r: 0, g: 1, b: 1, a: 1}
     skillAttack:
       mode: 1
+      hitType: 1
       range: 15
       radius: 2
-      damage: 120
+      damageRate: 2
       offset: 7.5
-      cooldown: 1.5
+      startupTime: 4
+      recoveryTime: 1
+      cooldown: 30
       gizmoColor: {r: 0, g: 0, b: 1, a: 1}
     visuals:
       weaponObject: {fileID: 8844091731040394789}
@@ -270,18 +288,24 @@ MonoBehaviour:
   - weaponType: 3
     normalAttack:
       mode: 0
+      hitType: 2
       range: 3.5
       radius: 1.5
-      damage: 45
+      damageRate: 2.25
       offset: 1.2
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 0.75
       gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
     skillAttack:
       mode: 1
+      hitType: 2
       range: 5
       radius: 2.2
-      damage: 90
+      damageRate: 4.5
       offset: 1.6
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 2
       gizmoColor: {r: 1, g: 1, b: 1, a: 1}
     visuals:
@@ -293,18 +317,24 @@ MonoBehaviour:
   - weaponType: 4
     normalAttack:
       mode: 0
+      hitType: 2
       range: 3.5
       radius: 1.5
-      damage: 45
+      damageRate: 2.25
       offset: 1.2
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 0.75
       gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
     skillAttack:
       mode: 1
+      hitType: 2
       range: 5
       radius: 2.2
-      damage: 90
+      damageRate: 4.5
       offset: 1.6
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 2
       gizmoColor: {r: 1, g: 1, b: 1, a: 1}
     visuals:
@@ -316,18 +346,24 @@ MonoBehaviour:
   - weaponType: 5
     normalAttack:
       mode: 0
+      hitType: 2
       range: 3.5
       radius: 1.5
-      damage: 45
+      damageRate: 2.25
       offset: 1.2
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 0.75
       gizmoColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
     skillAttack:
       mode: 1
+      hitType: 2
       range: 5
       radius: 2.2
-      damage: 90
+      damageRate: 4.5
       offset: 1.6
+      startupTime: 0.3
+      recoveryTime: 0.4
       cooldown: 2
       gizmoColor: {r: 1, g: 1, b: 1, a: 1}
     visuals:

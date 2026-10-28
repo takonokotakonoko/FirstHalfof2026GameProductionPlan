@@ -1,5 +1,12 @@
 using UnityEngine;
 
+public enum BuildingSize
+{
+    Small,
+    Medium,
+    Large
+}
+
 public class BuildingHealth : MonoBehaviour, IDamage
 {
     /// <summary>
@@ -7,8 +14,12 @@ public class BuildingHealth : MonoBehaviour, IDamage
     /// 建物の体力、破壊時のSE、破壊時のポイント処理を行う。
     /// </summary>
 
+    [Header("建物のサイズ")]
+    [Tooltip("破壊したときに出てくる強化の種類がサイズで変わる（小：体力・移動・通常攻撃 / 中：すべて / 大：経験値・敵出現・スキル）")]
+    [SerializeField] private BuildingSize buildingSize = BuildingSize.Small;
+
     [Header("建物の体力")]
-    [SerializeField] private float maxBuildingHealth = 100f;
+    [SerializeField] private float maxBuildingHealth = 60f;
     private float buildingHealth;
 
     [Header("報酬ポイント")]
@@ -17,6 +28,8 @@ public class BuildingHealth : MonoBehaviour, IDamage
     private PointManager pointManager;
 
     private bool destroyed = false;
+
+    public BuildingSize Size => buildingSize;
 
     private void Awake()
     {
@@ -51,7 +64,7 @@ public class BuildingHealth : MonoBehaviour, IDamage
             // ポイント加算
             if (pointManager != null)
             {
-                pointManager.AddPoint(rewardPoint);
+                pointManager.AddPoint(rewardPoint, buildingSize);
             }
 
             // 建物を崩壊させる

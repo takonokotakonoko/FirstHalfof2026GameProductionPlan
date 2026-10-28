@@ -22,15 +22,33 @@ public class PlayerAttack : MonoBehaviour
         Skill
     }
 
+    public enum HitType
+    {
+        // 正面単体：範囲内で一番近い1体だけに当たる
+        FrontSingle,
+        // 前方直線：細長い範囲内のすべてに当たる（形は range / radius で決める）
+        ForwardLine,
+        // 正面範囲：範囲内のすべてに当たる
+        FrontArea
+    }
+
     [System.Serializable]
     public class AttackProfile
     {
         public AttackMode mode;
+        [Tooltip("正面単体 / 前方直線 / 正面範囲")]
+        public HitType hitType = HitType.FrontArea;
         public float range = 1.5f;
         public float radius = 0.8f;
-        public float damage = 20f;
+        [Tooltip("基礎攻撃力に対する倍率。0.75 = 75%")]
+        public float damageRate = 1f;
         public float offset = 0.6f;
-        public float cooldown = 0.35f;
+        [Tooltip("前隙（秒）：攻撃ボタンを押してからダメージが入るまで")]
+        [Min(0f)] public float startupTime = 0.3f;
+        [Tooltip("後隙（秒）：ダメージが入ってから次の攻撃ができるまで")]
+        [Min(0f)] public float recoveryTime = 0.4f;
+        [Tooltip("クールタイム（秒）：攻撃ボタンを押してから同じ攻撃をもう一度使えるまで")]
+        [Min(0f)] public float cooldown = 0f;
         public Color gizmoColor = Color.red;
     }
 
@@ -71,44 +89,52 @@ public class PlayerAttack : MonoBehaviour
         WeaponType.Fist
     };
 
+    [Header("基礎攻撃力（全武器共通）")]
+    [Tooltip("ダメージ = 基礎攻撃力 × 攻撃ごとの倍率 × レベルなどの倍率")]
+    [SerializeField, Min(0f)] private float baseAttack = 20f;
+
+    [Header("スキル攻撃の解放")]
+    [Tooltip("ONにすると、時間経過報酬で解放されるまでスキル攻撃（右クリック）を使えません")]
+    [SerializeField] private bool skillLockedAtStart = true;
+
     [Header("武器ごとの通常攻撃 / スキル攻撃")]
     [SerializeField] private List<WeaponProfile> weaponProfiles = new List<WeaponProfile>
     {
         new WeaponProfile
         {
             weaponType = WeaponType.Fist,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 1.6f, radius = 0.8f, damage = 20f, offset = 0.6f, cooldown = 0.35f, gizmoColor = Color.red },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 2.2f, radius = 1.2f, damage = 40f, offset = 0.8f, cooldown = 0.8f, gizmoColor = Color.yellow }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, hitType = HitType.FrontSingle, range = 1.6f, radius = 0.8f, damageRate = 0.75f, offset = 0.6f, startupTime = 0.3f, recoveryTime = 0.4f, cooldown = 0f, gizmoColor = Color.red },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, hitType = HitType.FrontArea, range = 2.2f, radius = 1.2f, damageRate = 2f, offset = 0.8f, startupTime = 3f, recoveryTime = 2f, cooldown = 30f, gizmoColor = Color.yellow }
         },
         new WeaponProfile
         {
             weaponType = WeaponType.Sword,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 2.8f, radius = 1.0f, damage = 35f, offset = 1.0f, cooldown = 0.5f, gizmoColor = Color.magenta },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 4.5f, radius = 1.5f, damage = 80f, offset = 1.5f, cooldown = 1.2f, gizmoColor = Color.cyan }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, hitType = HitType.FrontArea, range = 2.8f, radius = 1.0f, damageRate = 1f, offset = 1.0f, startupTime = 0.5f, recoveryTime = 0.5f, cooldown = 0f, gizmoColor = Color.magenta },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, hitType = HitType.ForwardLine, range = 4.5f, radius = 0.7f, damageRate = 3f, offset = 2.25f, startupTime = 4f, recoveryTime = 4f, cooldown = 60f, gizmoColor = Color.cyan }
         },
         new WeaponProfile
         {
             weaponType = WeaponType.Gun,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 7.0f, radius = 0.5f, damage = 25f, offset = 1.5f, cooldown = 0.45f, gizmoColor = Color.cyan },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 9.0f, radius = 0.7f, damage = 60f, offset = 2.0f, cooldown = 1.5f, gizmoColor = Color.blue }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, hitType = HitType.ForwardLine, range = 7.0f, radius = 0.5f, damageRate = 0.5f, offset = 1.5f, startupTime = 0.2f, recoveryTime = 0.3f, cooldown = 0f, gizmoColor = Color.cyan },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, hitType = HitType.ForwardLine, range = 9.0f, radius = 0.7f, damageRate = 2f, offset = 2.0f, startupTime = 4f, recoveryTime = 1f, cooldown = 30f, gizmoColor = Color.blue }
         },
         new WeaponProfile
         {
             weaponType = WeaponType.Bomb,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.5f, radius = 1.5f, damage = 45f, offset = 1.2f, cooldown = 0.75f, gizmoColor = Color.yellow },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 5.0f, radius = 2.2f, damage = 90f, offset = 1.6f, cooldown = 2.0f, gizmoColor = Color.white }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.5f, radius = 1.5f, damageRate = 2.25f, offset = 1.2f, cooldown = 0.75f, gizmoColor = Color.yellow },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 5.0f, radius = 2.2f, damageRate = 4.5f, offset = 1.6f, cooldown = 2.0f, gizmoColor = Color.white }
         },
         new WeaponProfile
         {
             weaponType = WeaponType.BigSword,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.2f, radius = 1.1f, damage = 42f, offset = 1.0f, cooldown = 0.42f, gizmoColor = Color.green },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 6.0f, radius = 1.8f, damage = 95f, offset = 1.5f, cooldown = 1.35f, gizmoColor = Color.green }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 3.2f, radius = 1.1f, damageRate = 2.1f, offset = 1.0f, cooldown = 0.42f, gizmoColor = Color.green },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 6.0f, radius = 1.8f, damageRate = 4.75f, offset = 1.5f, cooldown = 1.35f, gizmoColor = Color.green }
         },
         new WeaponProfile
         {
             weaponType = WeaponType.Dice,
-            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 4.2f, radius = 1.2f, damage = 55f, offset = 1.4f, cooldown = 0.55f, gizmoColor = Color.gray },
-            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 7.5f, radius = 2.4f, damage = 130f, offset = 1.8f, cooldown = 1.8f, gizmoColor = Color.white }
+            normalAttack = new AttackProfile { mode = AttackMode.Normal, range = 4.2f, radius = 1.2f, damageRate = 2.75f, offset = 1.4f, cooldown = 0.55f, gizmoColor = Color.gray },
+            skillAttack = new AttackProfile { mode = AttackMode.Skill, range = 7.5f, radius = 2.4f, damageRate = 6.5f, offset = 1.8f, cooldown = 1.8f, gizmoColor = Color.white }
         }
     };
 
@@ -144,9 +170,9 @@ public class PlayerAttack : MonoBehaviour
     private float skillStartupReduction;
     private float skillRecoveryReduction;
     private float skillCooldownReduction;
-    private Animator activeAttackAnimator;
-    private float activeAnimatorBaseSpeed;
+    private bool skillUnlocked;
 
+    public bool IsSkillUnlocked => skillUnlocked;
     public bool CanReduceSkillStartup => CanReduceSkillStartupUpTo(0.9f);
     public bool CanReduceSkillRecovery => CanReduceSkillRecoveryUpTo(0.9f);
     public bool CanReduceSkillCooldown => CanReduceSkillCooldownUpTo(0.5f);
@@ -160,6 +186,7 @@ public class PlayerAttack : MonoBehaviour
         if (playerHealth == null)
             Debug.LogError("PlayerAttack requires a PlayerHealth component on this object or a parent.", this);
 
+        skillUnlocked = !skillLockedAtStart;
         LoadSelectedWeapon();
         EnsureWeaponAnimatorEntries();
         BuildWeaponMap();
@@ -308,12 +335,12 @@ public class PlayerAttack : MonoBehaviour
         {
             BeginAttack(AttackMode.Normal);
         }
-        else if (Input.GetMouseButtonDown(1) && Time.time >= skillReadyTime)
+        else if (Input.GetMouseButtonDown(1) && skillUnlocked && Time.time >= skillReadyTime)
         {
             BeginAttack(AttackMode.Skill);
         }
 
-        if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
+        if (Input.GetMouseButton(0) || (Input.GetMouseButton(1) && skillUnlocked))
         {
             DrawHeldAttackRange();
         }
@@ -368,12 +395,47 @@ public class PlayerAttack : MonoBehaviour
         }
 
         UpdateCooldownDisplay();
-        if (!PlayWeaponAnimation(attackMode))
-        {
-            PlayAttackVisual();
-            ApplyAttackDamage(profile);
-            isAttackAnimating = false;
-        }
+
+        // アニメーションは見た目だけ。ダメージと攻撃終了は前隙・後隙の秒数で決める
+        PlayWeaponAnimation(attackMode);
+        StartCoroutine(AttackRoutine(profile));
+    }
+
+    private IEnumerator AttackRoutine(AttackProfile profile)
+    {
+        float startupTime = GetEffectiveStartupTime(profile);
+        if (startupTime > 0f)
+            yield return new WaitForSeconds(startupTime);
+
+        PlayAttackVisual();
+        ApplyAttackDamage(profile);
+
+        float recoveryTime = GetEffectiveRecoveryTime(profile);
+        if (recoveryTime > 0f)
+            yield return new WaitForSeconds(recoveryTime);
+
+        isAttackAnimating = false;
+    }
+
+    private float GetEffectiveStartupTime(AttackProfile profile)
+    {
+        float reduction = profile.mode == AttackMode.Skill ? skillStartupReduction : 0f;
+        return profile.startupTime * (1f - reduction);
+    }
+
+    private float GetEffectiveRecoveryTime(AttackProfile profile)
+    {
+        float reduction = profile.mode == AttackMode.Skill ? skillRecoveryReduction : 0f;
+        return profile.recoveryTime * (1f - reduction);
+    }
+
+    /// <summary>
+    /// スキル攻撃（右クリック）を使えるようにします（時間経過報酬「スキル攻撃解放」用）。
+    /// </summary>
+    public void UnlockSkill()
+    {
+        skillUnlocked = true;
+        UpdateCooldownDisplay();
     }
 
     private void PlayCooldownReadySounds()
@@ -391,27 +453,14 @@ public class PlayerAttack : MonoBehaviour
         }
     }
 
+    // 攻撃アニメーションのイベントから呼ばれる。
+    // ダメージと攻撃終了は前隙・後隙の秒数で管理しているため、ここでは何もしない
     public void OnAttackAnimationFinished()
     {
-        RestoreAttackAnimatorSpeed();
-        isAttackAnimating = false;
     }
 
     public void OnActionEvent(int actionIndex)
     {
-        AttackMode attackMode = actionIndex == 1 ? AttackMode.Skill : AttackMode.Normal;
-        AttackProfile profile = attackMode == AttackMode.Normal
-            ? GetCurrentWeaponNormalAttack()
-            : GetCurrentWeaponSkillAttack();
-
-        if (profile == null)
-            return;
-
-        if (attackMode == AttackMode.Skill)
-            SetAttackAnimatorSpeed(skillRecoveryReduction);
-
-        PlayAttackVisual();
-        ApplyAttackDamage(profile);
     }
 
     private void ApplyAttackDamage(AttackProfile profile)
@@ -430,26 +479,49 @@ public class PlayerAttack : MonoBehaviour
             QueryTriggerInteraction.Ignore
         );
 
-        float finalDamage = playerHealth != null
-            ? profile.damage * playerHealth.StatMultiplier
-            : profile.damage;
-        finalDamage *= profile.mode == AttackMode.Normal
-            ? 1f + normalDamageBonus
-            : 1f + skillDamageBonus;
-        int damageCount = 0;
+        // 参照攻撃力上昇のバフは倍率に足す（75% + 5% = 80%）
+        float damageRate = profile.damageRate + (profile.mode == AttackMode.Normal
+            ? normalDamageBonus
+            : skillDamageBonus);
+        float finalDamage = baseAttack * damageRate;
+        if (playerHealth != null)
+            finalDamage *= playerHealth.StatMultiplier;
+
+        // 1体に複数のColliderがあっても1回だけ当たるようにまとめる
+        var targets = new List<IDamage>();
+        IDamage nearestTarget = null;
+        float nearestDistance = float.MaxValue;
         foreach (Collider hit in hitColliders)
         {
-            if (hit.gameObject == gameObject)
+            if (hit.transform.IsChildOf(transform))
                 continue;
 
-            if (hit.GetComponentInParent<IDamage>() is IDamage damageable)
+            if (!(hit.GetComponentInParent<IDamage>() is IDamage damageable)
+                || ReferenceEquals(damageable, playerHealth)
+                || targets.Contains(damageable))
+                continue;
+
+            targets.Add(damageable);
+
+            float distance = (hit.ClosestPoint(transform.position) - transform.position).sqrMagnitude;
+            if (distance < nearestDistance)
             {
-                damageable.TakeDamage(finalDamage);
-                damageCount++;
+                nearestDistance = distance;
+                nearestTarget = damageable;
             }
         }
 
-        Debug.Log($"{profile.mode} 攻撃: {damageCount}体にダメージ {finalDamage}");
+        if (profile.hitType == HitType.FrontSingle)
+        {
+            targets.Clear();
+            if (nearestTarget != null)
+                targets.Add(nearestTarget);
+        }
+
+        foreach (IDamage target in targets)
+            target.TakeDamage(finalDamage);
+
+        Debug.Log($"{profile.mode} 攻撃: {targets.Count}体にダメージ {finalDamage}");
     }
 
     private void UpdateCooldownDisplay()
@@ -458,9 +530,20 @@ public class PlayerAttack : MonoBehaviour
         AttackProfile skillAttack = GetCurrentWeaponSkillAttack();
 
         UpdateCooldownLabel(normal_Cooldown, normalReadyTime);
-        UpdateCooldownLabel(skill_Cooldown, skillReadyTime);
         UpdateCooldownGauge(normalCooldownGauge, normalReadyTime, normalAttack,
             GetEffectiveCooldown(normalAttack, AttackMode.Normal));
+
+        if (!skillUnlocked)
+        {
+            // 解放前のスキルは「LOCK」表示にして、ゲージを空にする
+            if (skill_Cooldown != null)
+                skill_Cooldown.text = "LOCK";
+            if (skillCooldownGauge != null)
+                skillCooldownGauge.fillAmount = 0f;
+            return;
+        }
+
+        UpdateCooldownLabel(skill_Cooldown, skillReadyTime);
         UpdateCooldownGauge(skillCooldownGauge, skillReadyTime, skillAttack,
             GetEffectiveCooldown(skillAttack, AttackMode.Skill));
     }
@@ -538,27 +621,8 @@ public class PlayerAttack : MonoBehaviour
         if (string.IsNullOrEmpty(triggerName))
             return false;
 
-        activeAttackAnimator = animatorProfile.animator;
-        activeAnimatorBaseSpeed = activeAttackAnimator.speed;
-        SetAttackAnimatorSpeed(attackMode == AttackMode.Skill ? skillStartupReduction : 0f);
         animatorProfile.animator.SetTrigger(triggerName);
         return true;
-    }
-
-    private void SetAttackAnimatorSpeed(float durationReduction)
-    {
-        if (activeAttackAnimator == null)
-            return;
-
-        activeAttackAnimator.speed = activeAnimatorBaseSpeed / Mathf.Max(0.1f, 1f - durationReduction);
-    }
-
-    private void RestoreAttackAnimatorSpeed()
-    {
-        if (activeAttackAnimator != null)
-            activeAttackAnimator.speed = activeAnimatorBaseSpeed;
-
-        activeAttackAnimator = null;
     }
 
     public void IncreaseNormalDamage(float amount)

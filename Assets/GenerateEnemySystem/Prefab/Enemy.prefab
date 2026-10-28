@@ -160,8 +160,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74b12653fea64bd4cb18727f52493d7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moveSpeed: 1
-  stoppingDistance: 1.5
+  moveSpeed: 0.5
+  stoppingDistance: 0
   targetTag: Player
   searchZone: {fileID: 1587227545}
 --- !u!114 &74671901
@@ -193,10 +193,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemyAttack
   attackShape: 0
-  attackRange: 1.5
+  attackRange: 0.5
   attackWidth: 1
   attackDamage: 10
-  attackInterval: 1
+  attackInterval: 2
   targetTag: Player
   attackRangeColor: {r: 1, g: 0.2, b: 0.1, a: 0.2}
   attackEffect: {fileID: 0}

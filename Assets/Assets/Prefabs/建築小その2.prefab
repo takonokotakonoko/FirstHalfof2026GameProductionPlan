@@ -65,7 +65,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90fea220f8b41024d944d0a43a4f0694, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BuildingHealth
-  maxBuildingHealth: 100
+  buildingSize: 0
+  maxBuildingHealth: 60
   rewardPoint: 1
 --- !u!1001 &4038304015566622440
 PrefabInstance:
