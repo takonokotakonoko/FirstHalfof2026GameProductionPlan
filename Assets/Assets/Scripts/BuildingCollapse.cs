@@ -15,6 +15,9 @@ public class BuildingCollapse : MonoBehaviour
     [Header("崩壊エフェクト")]
     [SerializeField] private ParticleSystem collapseEffect;
 
+    [Header("崩壊効果音（SoundPlayerに登録した名前）")]
+    [SerializeField] private string collapseSoundName = "buildingCollapse";
+
     private bool collapsed = false;
     private BoxCollider[] debrisColliders;
 
@@ -24,6 +27,8 @@ public class BuildingCollapse : MonoBehaviour
             return;
 
         collapsed = true;
+        SoundPlayer.PlayIfExists(collapseSoundName);
+
         if (collapseEffect != null)
         {
             ParticleSystem effect = Instantiate(collapseEffect, transform.position, transform.rotation);

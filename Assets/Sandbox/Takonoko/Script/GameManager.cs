@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -33,6 +34,21 @@ using UnityEngine.UI;
 /// </summary>
 public class GameManager : MonoBehaviour
 {
+    /// <summary>
+    /// 「ゲーム開始から何秒後に、どのBGMを流すか」1つ分のデータです。
+    /// </summary>
+    [System.Serializable]
+    public class MusicSchedule
+    {
+        [Tooltip("ゲーム開始から何秒後に流すか")]
+        [Min(0f)]
+        public float startTime;
+
+        [Tooltip("流すBGM名（MusicPlayerに登録した名前）")]
+        public string musicName;
+    }
+
+
     // =========================================================
     // GameManagerをどこからでも呼び出せるようにする
     // =========================================================
@@ -59,6 +75,17 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     private float gameDuration = 60f;
 
+    [Tooltip("ONにすると、シーン開始と同時にゲームを開始します（ボタンからStartGameを呼ばないシーン用）")]
+    [SerializeField]
+    private bool startOnSceneStart = false;
+
+
+    [Header("BGM設定")]
+
+    [Tooltip("ゲーム中に流すBGMを、開始時間の早い順に登録してください")]
+    [SerializeField]
+    private List<MusicSchedule> musicSchedules = new List<MusicSchedule>();
+
 
     [Header("タイマー表示")]
 
@@ -80,6 +107,13 @@ public class GameManager : MonoBehaviour
     [Tooltip("タイトル画面で表示するTitle群のGameObjectを設定してください")]
     [SerializeField]
     private GameObject titleGroup;
+
+
+    [Header("効果音設定")]
+
+    [Tooltip("ゲーム終了時（リザルト画面表示時）に鳴らす効果音名（SoundPlayerに登録した名前）")]
+    [SerializeField]
+    private string resultSoundName = "result";
 
 
     // =========================================================
@@ -105,6 +139,12 @@ public class GameManager : MonoBehaviour
     /// false = ゲーム中ではない
     /// </summary>
     private bool isPlaying = false;
+
+
+    /// <summary>
+    /// musicSchedulesのうち、次に流すBGMの番号です。
+    /// </summary>
+    private int nextMusicIndex = 0;
 
 
     // =========================================================
@@ -139,6 +179,14 @@ public class GameManager : MonoBehaviour
 
         // タイマー表示を「00:00」に更新します。
         UpdateTimerText();
+
+
+        // シーン開始と同時にゲームを始める設定なら、
+        // ここでゲームを開始します。
+        if (startOnSceneStart)
+        {
+            StartGame();
+        }
     }
 
 
@@ -272,6 +320,15 @@ public class GameManager : MonoBehaviour
         // trueにすることで、
         // Update()内でタイマーが進むようになります。
         isPlaying = true;
+
+
+        // -----------------------------------------
+        // 最初のBGMを流す
+        // -----------------------------------------
+
+        nextMusicIndex = 0;
+
+        UpdateMusic();
     }
 
 
@@ -306,6 +363,13 @@ public class GameManager : MonoBehaviour
 
 
         // -----------------------------------------
+        // 経過時間に合わせてBGMを切り替える
+        // -----------------------------------------
+
+        UpdateMusic();
+
+
+        // -----------------------------------------
         // 制限時間になったか確認する
         // -----------------------------------------
 
@@ -335,6 +399,57 @@ public class GameManager : MonoBehaviour
         // 現在の経過時間を
         // Textに表示します。
         UpdateTimerText();
+    }
+
+
+    // =========================================================
+    // BGMの切り替え
+    // =========================================================
+
+    /// <summary>
+    /// 経過時間がmusicSchedulesの開始時間を過ぎていたら、
+    /// そのBGMに切り替えます。
+    ///
+    /// 例：
+    ///
+    /// 0秒   → battle
+    /// 40秒  → battle2
+    /// 80秒  → battle3
+    /// 120秒 → boss
+    /// </summary>
+    private void UpdateMusic()
+    {
+        string musicToPlay = null;
+
+
+        // 開始時間を過ぎたものを順番に確認します。
+        //
+        // 1フレームで複数の開始時間を過ぎた場合は、
+        // 最後に過ぎたBGMだけを流します。
+        while (nextMusicIndex < musicSchedules.Count
+            && elapsedTime >= musicSchedules[nextMusicIndex].startTime)
+        {
+            musicToPlay = musicSchedules[nextMusicIndex].musicName;
+            nextMusicIndex++;
+        }
+
+
+        if (musicToPlay == null)
+        {
+            return;
+        }
+
+
+        if (MusicPlayer.Instance == null)
+        {
+            Debug.LogWarning(
+                "GameManager：MusicPlayerが見つからないため、BGMを再生できません。"
+            );
+
+            return;
+        }
+
+        MusicPlayer.Instance.Play(musicToPlay);
     }
 
 
@@ -479,6 +594,10 @@ public class GameManager : MonoBehaviour
                 "GameManager：リザルト画面が設定されていません。"
             );
         }
+
+
+        // リザルト画面に移るときの効果音を鳴らします。
+        SoundPlayer.PlayIfExists(resultSoundName);
 
 
         // -----------------------------------------
