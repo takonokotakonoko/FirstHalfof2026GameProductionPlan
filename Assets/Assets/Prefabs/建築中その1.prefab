@@ -48,7 +48,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingHealth
   maxBuildingHealth: 100
   rewardPoint: 1
-  collapseSound: {fileID: 0}
 --- !u!114 &8817471699203990539
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -67,6 +66,7 @@ MonoBehaviour:
   buildingBody: {fileID: 8200025138044482705}
   buildingCollider: {fileID: 5857263170637728791}
   debrisLifetime: 5
+  collapseEffect: {fileID: 2081015124781424521, guid: 82da36e33e0ddd9468e751ecedf959a3, type: 3}
 --- !u!1001 &4860712314177556062
 PrefabInstance:
   m_ObjectHideFlags: 0

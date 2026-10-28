@@ -14,9 +14,6 @@ public class BuildingHealth : MonoBehaviour, IDamage
     [Header("報酬ポイント")]
     [SerializeField] public int rewardPoint = 1;
 
-    [Header("破壊時のSE")]
-    public SoundPlayer collapseSound;
-
     private PointManager pointManager;
 
     private bool destroyed = false;

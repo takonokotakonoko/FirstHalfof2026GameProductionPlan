@@ -74,7 +74,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 62f2f7c7758540c45b992e47da1815a8, type: 2}
+  - {fileID: 2100000, guid: c1176ba4685440d4694986be18215da1, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -182,6 +182,7 @@ MonoBehaviour:
   HpBar: {fileID: 0}
   levelUpSound: {fileID: 8300000, guid: 42c3be370fdae5540bb5b591d602093d, type: 3}
   levelUpSoundVolume: 1
+  damageEffect: {fileID: 3727540301875879104, guid: edb067f98de8fb449a3ed77401236587, type: 3}
   level: 1
 --- !u!114 &590732885928043253
 MonoBehaviour:
@@ -359,6 +360,12 @@ MonoBehaviour:
   normalCooldownReadySound: {fileID: 8300000, guid: b89dee9a99109594e968e33b64ca204a, type: 3}
   skillCooldownReadySound: {fileID: 8300000, guid: 5998a71419bc4ed4b9e6fc724f7274ad, type: 3}
   cooldownReadySoundVolume: 0.5
+  fistAttackEffect: {fileID: 2393334117695513247, guid: ebd3fe2e2c47f1e45a960ffcc19b947c, type: 3}
+  gunAttackEffect: {fileID: 5549448192740565000, guid: 1d5934ebf382d2343b112fb6bf6cbf43, type: 3}
+  fistNormalTransform: {fileID: 5744633291764169226}
+  fistSkillTransform: {fileID: 2104575421585068935}
+  gunTransform: {fileID: 8212127273563817119}
+  weaponEffectOffset: {x: 0, y: 0.5, z: 1}
   normalCooldownGauge: {fileID: 0}
   skillCooldownGauge: {fileID: 0}
   weaponAnimators:

@@ -103,4 +103,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BuildingHealth
   maxBuildingHealth: 10
   rewardPoint: 1
-  collapseSound: {fileID: 0}
+  collapseEffect: {fileID: 0}

@@ -171,6 +171,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PointManager
   quotaPoint: 2
+  buffAcquiredEffect: {fileID: 0}
   maxHealthBuff:
     enabled: 1
     unlockAfterSeconds: 0

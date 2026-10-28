@@ -12,6 +12,9 @@ public class BuildingCollapse : MonoBehaviour
     [SerializeField] private Collider buildingCollider;
     [SerializeField] private float debrisLifetime = 3f;
 
+    [Header("崩壊エフェクト")]
+    [SerializeField] private ParticleSystem collapseEffect;
+
     private bool collapsed = false;
     private BoxCollider[] debrisColliders;
 
@@ -21,6 +24,13 @@ public class BuildingCollapse : MonoBehaviour
             return;
 
         collapsed = true;
+        if (collapseEffect != null)
+        {
+            ParticleSystem effect = Instantiate(collapseEffect, transform.position, transform.rotation);
+            effect.Play();
+            ParticleSystem.MainModule main = effect.main;
+            Destroy(effect.gameObject, main.duration + main.startLifetime.constantMax);
+        }
 
         // 建物本体のColliderを無効化
         if (buildingCollider != null)
