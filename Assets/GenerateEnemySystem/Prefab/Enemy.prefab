@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 74671895}
   - component: {fileID: 74671901}
   - component: {fileID: 74671902}
+  - component: {fileID: 74671903}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -198,6 +199,21 @@ MonoBehaviour:
   targetTag: Player
   attackRangeColor: {r: 1, g: 0.2, b: 0.1, a: 0.2}
   attackEffect: {fileID: 0}
+--- !u!114 &74671903
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 74671894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4f7c2a9d1b3e4c5a8d6f0e2b7a9c1d3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDamageEffectSpawner
+  effectPrefab: {fileID: 5905758849675261470, guid: 863c3e9627cf96d40af81cf7f47f5300, type: 3}
+  lifeTime: 1
+  spawnOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &1587227544
 GameObject:
   m_ObjectHideFlags: 0

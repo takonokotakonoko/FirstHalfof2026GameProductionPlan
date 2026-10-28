@@ -10,6 +10,23 @@ public class EnemyHealth : MonoBehaviour, IDamage
     public int experimentPoint = 1;
     private bool isDead;
 
+    /// <summary>ダメージを受けたときに通知する（引数はダメージ量）。エフェクト再生などに使用。</summary>
+    public event System.Action<float> Damaged;
+
+    private void Awake()
+    {
+        if (!TryGetComponent<EnemyDamageEffectSpawner>(out _))
+        {
+            gameObject.AddComponent<EnemyDamageEffectSpawner>();
+        }
+    }
+
+    private void OnEnable()
+    {
+        currentHealth = maxHealth;
+        isDead = false;
+    }
+
     private void Start()
     {
         currentHealth = maxHealth;
@@ -22,6 +39,7 @@ public class EnemyHealth : MonoBehaviour, IDamage
 
         currentHealth -= damageAmount;
         Debug.Log($"{gameObject.name} に {damageAmount} ダメージ！ 残りHP: {currentHealth}");
+        Damaged?.Invoke(damageAmount);
 
         if (currentHealth <= 0f)
         {
@@ -43,11 +61,7 @@ public class EnemyHealth : MonoBehaviour, IDamage
         }
 
         LevelManager levelManager = GameObject.FindAnyObjectByType<LevelManager>();
-        if (levelManager == null)
-        {
-            Debug.LogError("EnemyHealth: LevelManager が見つからないため、経験値を付与できません。", this);
-        }
-        else
+        if (levelManager != null)
         {
             levelManager.GetExp(experimentPoint);
         }
