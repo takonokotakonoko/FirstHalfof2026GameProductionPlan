@@ -253,10 +253,14 @@ public class PlayerAttack : MonoBehaviour
 
         foreach (var weapon in weaponMap.Values)
         {
-            if (weapon == null || weapon.visuals == null || weapon.visuals.weaponObject == null)
+            if (weapon == null)
                 continue;
 
-            weapon.visuals.weaponObject.SetActive(IsUsableWeapon(weapon.weaponType));
+            var visuals = GetWeaponVisuals(weapon);
+            if (visuals == null || visuals.weaponObject == null)
+                continue;
+
+            visuals.weaponObject.SetActive(IsUsableWeapon(weapon.weaponType));
         }
     }
 
@@ -336,7 +340,12 @@ public class PlayerAttack : MonoBehaviour
         }
 
         UpdateCooldownDisplay();
-        PlayWeaponAnimation(attackMode);
+        if (!PlayWeaponAnimation(attackMode))
+        {
+            PlayAttackVisual();
+            ApplyAttackDamage(profile);
+            isAttackAnimating = false;
+        }
     }
 
     private void PlayCooldownReadySounds()
@@ -499,11 +508,11 @@ public class PlayerAttack : MonoBehaviour
         gauge.fillAmount = Mathf.Clamp01(1f - remainingTime / effectiveCooldown);
     }
 
-    private void PlayWeaponAnimation(AttackMode attackMode)
+    private bool PlayWeaponAnimation(AttackMode attackMode)
     {
         var weapon = GetCurrentWeaponProfile();
         if (weapon == null || weaponAnimators == null)
-            return;
+            return false;
 
         WeaponAnimatorProfile animatorProfile = null;
         foreach (var profile in weaponAnimators)
@@ -515,19 +524,21 @@ public class PlayerAttack : MonoBehaviour
             }
         }
 
-        if (animatorProfile == null || animatorProfile.animator == null)
-            return;
-
-        activeAttackAnimator = animatorProfile.animator;
-        activeAnimatorBaseSpeed = activeAttackAnimator.speed;
-        SetAttackAnimatorSpeed(attackMode == AttackMode.Skill ? skillStartupReduction : 0f);
+        if (animatorProfile == null || animatorProfile.animator == null || !animatorProfile.animator.isActiveAndEnabled)
+            return false;
 
         string triggerName = attackMode == AttackMode.Normal
             ? animatorProfile.normalTrigger
             : animatorProfile.skillTrigger;
 
-        if (!string.IsNullOrEmpty(triggerName))
-            animatorProfile.animator.SetTrigger(triggerName);
+        if (string.IsNullOrEmpty(triggerName))
+            return false;
+
+        activeAttackAnimator = animatorProfile.animator;
+        activeAnimatorBaseSpeed = activeAttackAnimator.speed;
+        SetAttackAnimatorSpeed(attackMode == AttackMode.Skill ? skillStartupReduction : 0f);
+        animatorProfile.animator.SetTrigger(triggerName);
+        return true;
     }
 
     private void SetAttackAnimatorSpeed(float durationReduction)
@@ -635,13 +646,41 @@ public class PlayerAttack : MonoBehaviour
         return Mathf.Clamp(currentValue + amount, minimumValue, maximumValue);
     }
 
+    private AttackVisuals GetWeaponVisuals(WeaponProfile weapon)
+    {
+        if (weapon == null)
+            return null;
+
+        if (weapon.visuals != null &&
+            (weapon.visuals.weaponObject != null ||
+             weapon.visuals.attackEffect != null ||
+             weapon.visuals.projectilePrefab != null))
+        {
+            return weapon.visuals;
+        }
+
+        switch (weapon.weaponType)
+        {
+            case WeaponType.Sword:
+                return swordVisuals ?? weapon.visuals;
+            case WeaponType.Gun:
+                return gunVisuals ?? weapon.visuals;
+            case WeaponType.Bomb:
+                return bombVisuals ?? weapon.visuals;
+            default:
+                return weapon.visuals;
+        }
+    }
+
     private void PlayAttackVisual()
     {
         var weapon = GetCurrentWeaponProfile();
-        if (weapon == null || weapon.visuals == null)
+        if (weapon == null)
             return;
 
-        var visuals = weapon.visuals;
+        var visuals = GetWeaponVisuals(weapon);
+        if (visuals == null)
+            return;
 
         if (visuals.weaponObject != null
             && weapon.weaponType != WeaponType.Fist

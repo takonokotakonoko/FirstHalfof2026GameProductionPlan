@@ -79,7 +79,7 @@ public class EnemyMove : MonoBehaviour
             if (animator != null)
                 animator.SetBool("IsMoving", true);
         }
-        else if(moveDistance <= 0.001 || !enemyAttack.IsTargetInRange(target))
+        else if(moveDistance <= 0.001 || (enemyAttack != null && !enemyAttack.IsTargetInRange(target)))
         {
             if (animator != null)
                 animator.SetBool("IsMoving", false);
